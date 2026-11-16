@@ -107,6 +107,8 @@ SRKit.time.arrived('3' + '0'.repeat(110), '3' + '0'.repeat(98) + '134009348401',
 
 ## How it is checked
 
+197 Rust tests (core 41, cosmology 41, gravity 50, event log 8, diagrams 54, binding 3), 951 checks of the JavaScript binding and 154 of the Python binding. What they are:
+
 - **Golden vectors.** `tools/golden_core.py` computes 610 cases from their textbook formulas (or a quadrature, or a root found by mpmath) at 60 significant digits, sharing no code with the crate. `tests/golden.rs` holds each family to a stated relative tolerance. Measured worst errors: 1e-15 to 5e-15 for segments, rides, optics, boosts, burns and Kepler's equation; 1e-11 where the input is a velocity near c; 6e-12 for reach (its iteration stops at 1e-12 by design).
 - **The physics oracle.** `tools/physics-checks/oracle.csv` is the project's table of reference numbers. `srkit-core` recomputes 47 of its rows through the public API, `srkit-flrw` and `srkit-gr` the rows that are theirs. Rows that are game design are left to `oracle_check.py`, which still reproduces every row.
 - **Properties** (proptest): proper time inverts; nothing outruns light; velocity is the derivative of position; light-cone roots lie on the cone; the interval is invariant under boosts; steered thrust holds its proper acceleration and agrees with the straight form when aligned; burns obey the rocket equation; itineraries join in position and velocity and end on their target; the event log gives one history however it is read.
@@ -129,6 +131,17 @@ Not yet done from the plan's contract (§3): the same comparison on aarch64, a p
 - Circular segments use a floating-point phase. The clock module reduces an integer-millisecond period exactly; joining the two for deep-time orbits is not done.
 - `srkit-flrw` is matter and Λ only. Radiation is out of scope for the closed forms.
 - Kerr orbits off the equator, geodesics and imaging are out of scope for `srkit-gr` by design.
+- The Python binding covers the core. `srkit-flrw`, `srkit-gr` and `srkit-log` are not bound in Python yet; the JavaScript binding has the core, cosmology and gravity, and not the log or the diagrams.
+
+## Rough edges in the API
+
+Found by writing three bindings against the core, and not yet smoothed:
+
+- "No answer" comes back four ways: `Option` from a segment's light-cone root, `±inf` from a worldline's, NaN from an orbit's, `None` from `seen_from`.
+- The plain segment constructors do not validate (evaluation is total, and applications build segments in hot loops). `Segment::validate` checks one from outside; `Steered` and `Burn` normalise their directions, the others trust them.
+- A plan that starts with a boost, used as a worldline's first segment, continues backwards as a ship braking in from infinity. Put a `Rest` before it.
+- `Trip` caps the Lorentz factor; `plan::line` caps the rapidity. `plan::brake` and `orbit_exit` return tuples where `line` and `orbit_entry` return structs.
+- `Duration` has no ordering; `modulo_millis` takes a period of at most 64 bits; a `Timestamp` is built from decimal text or a `bnum` integer, so a binding needs `bnum` at the same version.
 
 ## Layout
 

@@ -1,0 +1,41 @@
+[build-system]
+requires = ["maturin>=1.9.4,<2"]
+build-backend = "maturin"
+
+[project]
+name = "srkit"
+description = "Special relativity in 3+1 Minkowski spacetime: piecewise-analytic worldlines, light-cone queries and exact integer clocks"
+readme = "README.md"
+requires-python = ">=3.9"
+# The licence of SRKit is not decided yet, so none is declared and the package must stay private.
+classifiers = [
+    "Private :: Do Not Upload",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Typing :: Typed",
+]
+# The version comes from Cargo.toml.
+dynamic = ["version"]
+
+[project.optional-dependencies]
+# NumPy is optional: the vectorised methods return NumPy arrays when it can be imported and lists otherwise.
+numpy = ["numpy>=1.21"]
+test = ["pytest>=7", "numpy>=1.21"]
+
+[tool.maturin]
+# The extension is the private module `srkit._srkit`; `python/srkit/` holds the thin wrapper, the type stubs
+# and `py.typed`.
+module-name = "srkit._srkit"
+python-source = "python"
+bindings = "pyo3"
+# abi3 comes from the `abi3-py39` feature of PyO3 in Cargo.toml.
+strip = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

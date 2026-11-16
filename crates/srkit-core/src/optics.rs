@@ -100,8 +100,11 @@ pub fn playback(v: Vec3, n: Vec3, v_source: Vec3) -> f64 {
         / (1.0 + n.dot(v_source))
 }
 
-/// An observer's forward, up and right axes from its velocity: forward along the motion (`+x` at rest), up as
+/// An observer's forward, up and right axes from its heading: forward along the motion (`+x` at rest), up as
 /// near `+z` as it can be while perpendicular to forward, right completing the set.
+///
+/// `v` is used as the forward axis as given, without normalising: pass a unit heading for an orthonormal set
+/// (the applications do). With a velocity of length `b`, forward and right have length `b`.
 pub fn basis(v: Vec3) -> (Vec3, Vec3, Vec3) {
     let f = if v.norm() > 0.0 { v } else { Vec3::X };
     let mut u = Vec3::Z - f * f.z;

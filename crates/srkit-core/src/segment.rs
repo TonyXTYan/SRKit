@@ -560,6 +560,87 @@ impl Segment {
     pub fn is_null(&self) -> bool {
         matches!(self, Self::Null(_))
     }
+    /// The kind as a short lower-case name: `rest`, `inertial`, `hyperbolic`, `steered`, `burn`, `circular`,
+    /// `null`.
+    pub fn kind_name(&self) -> &'static str {
+        match self {
+            Self::Rest(_) => "rest",
+            Self::Inertial(_) => "inertial",
+            Self::Hyperbolic(_) => "hyperbolic",
+            Self::Steered(_) => "steered",
+            Self::Burn(_) => "burn",
+            Self::Circular(_) => "circular",
+            Self::Null(_) => "null",
+        }
+    }
+    /// Check that the segment describes something physical: finite numbers, a speed below `c`, unit direction
+    /// vectors (to 1e-9), a non-zero acceleration, and an end no earlier than the start.
+    ///
+    /// The plain constructors do not check, because evaluation is total and an application may build segments
+    /// in a hot loop. Call this on anything that comes from outside.
+    pub fn validate(&self) -> Result<(), Error> {
+        let unit = |v: Vec3| v.is_finite() && (v.norm() - 1.0).abs() <= 1e-9;
+        let (t0, t1) = (self.t0(), self.t1());
+        // the start may be minus infinity only for a body at rest; the end may be plus infinity for any
+        let times = !t0.is_nan() && !t1.is_nan() && t1 >= t0 && t1 > f64::NEG_INFINITY;
+        let ok = times
+            && match self {
+                Self::Rest(g) => g.p.is_finite() && t0 < f64::INFINITY,
+                Self::Inertial(g) => {
+                    t0.is_finite() && g.p0.is_finite() && g.v.is_finite() && g.v.norm() < 1.0
+                }
+                Self::Hyperbolic(g) => {
+                    t0.is_finite()
+                        && g.p0.is_finite()
+                        && unit(g.n)
+                        && g.alpha.is_finite()
+                        && g.alpha != 0.0
+                        && g.phi0.is_finite()
+                }
+                Self::Steered(g) => {
+                    t0.is_finite()
+                        && g.p0.is_finite()
+                        && g.u0.is_finite()
+                        && unit(g.n)
+                        && g.alpha.is_finite()
+                        && g.alpha > 0.0
+                }
+                Self::Burn(g) => {
+                    t0.is_finite()
+                        && g.p0.is_finite()
+                        && unit(g.n)
+                        && g.phi0.is_finite()
+                        && g.w > 0.0
+                        && g.w <= 1.0
+                        && g.t_burn.is_finite()
+                        && g.t_burn > 0.0
+                }
+                Self::Circular(g) => {
+                    t0.is_finite()
+                        && g.centre.is_finite()
+                        && g.r.is_finite()
+                        && g.r > 0.0
+                        && g.omega.is_finite()
+                        && (g.r * g.omega).abs() < 1.0
+                        && unit(g.e1)
+                        && unit(g.e2)
+                        && g.e1.dot(g.e2).abs() <= 1e-9
+                        && g.a0.is_finite()
+                }
+                Self::Null(g) => {
+                    t0.is_finite()
+                        && t1.is_finite()
+                        && g.p0.is_finite()
+                        && g.p1.is_finite()
+                        && unit(g.n)
+                }
+            };
+        if ok {
+            Ok(())
+        } else {
+            Err(Error::InvalidInput)
+        }
+    }
 
     /// Position and velocity at coordinate time `t`.
     pub fn at(&self, t: f64) -> State {
@@ -818,7 +899,9 @@ impl Segment {
                         return None;
                     }
                     let r0 = self.at(lo).x.dist(event.x);
-                    let mut step = r0 * 2.0 + 1.0;
+                    // r0 > 0 here (at r0 = 0 the light has already arrived), so twice the light-time is a
+                    // first reach of the scene's own size, whatever the units
+                    let mut step = if r0 > 0.0 { r0 * 2.0 } else { 1.0 };
                     b = lo + step;
                     while f(b).0 < 0.0 {
                         step *= 2.0;
@@ -873,7 +956,7 @@ impl Segment {
                         return None;
                     }
                     let r1 = event.x.dist(self.at(hi).x);
-                    let mut step = r1 * 2.0 + 1.0;
+                    let mut step = if r1 > 0.0 { r1 * 2.0 } else { 1.0 };
                     a = hi - step;
                     while f(a).0 > 0.0 {
                         step *= 2.0;

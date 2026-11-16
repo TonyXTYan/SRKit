@@ -412,3 +412,104 @@ fn a_burn_stays_consistent_towards_burn_out() {
     // before its start a burn continues backwards, heavier and slower
     assert!(seg.dtau(-0.5) < 0.0 && seg.at(-0.5).v.x < 0.0);
 }
+
+#[test]
+fn validation_catches_what_the_plain_constructors_let_through() {
+    use srkit_core::segment::Null;
+    let good = [
+        Segment::rest(f64::NEG_INFINITY, f64::INFINITY, Vec3::ZERO),
+        Segment::inertial(0.0, 1.0, Vec3::ZERO, Vec3::new(0.6, 0.0, 0.0)),
+        Segment::hyperbolic(0.0, f64::INFINITY, Vec3::ZERO, Vec3::Y, -2.0, 3.0),
+        Segment::circular(0.0, 9.0, Vec3::ZERO, 2.0, 0.4, Vec3::X, Vec3::Z, 1.0),
+        Segment::Null(Null::between(0.0, Vec3::ZERO, Vec3::new(0.0, 3.0, 4.0))),
+        Segment::Steered(
+            Steered::new(
+                0.0,
+                1.0,
+                Vec3::ZERO,
+                Vec3::ZERO,
+                Vec3::new(0.0, 0.0, 5.0),
+                1.0,
+            )
+            .unwrap(),
+        ),
+        Segment::Burn(
+            Burn::new(
+                0.0,
+                0.2,
+                Vec3::ZERO,
+                Vec3::new(2.0, 0.0, 0.0),
+                0.0,
+                1.0,
+                0.5,
+            )
+            .unwrap(),
+        ),
+    ];
+    for g in &good {
+        assert_eq!(g.validate(), Ok(()), "{}", g.kind_name());
+    }
+    let names: Vec<_> = good.iter().map(|g| g.kind_name()).collect();
+    assert_eq!(
+        names,
+        [
+            "rest",
+            "inertial",
+            "hyperbolic",
+            "circular",
+            "null",
+            "steered",
+            "burn"
+        ]
+    );
+    let bad = [
+        Segment::rest(0.0, 1.0, Vec3::new(f64::NAN, 0.0, 0.0)),
+        Segment::rest(5.0, 1.0, Vec3::ZERO),
+        Segment::inertial(0.0, 1.0, Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0)),
+        Segment::inertial(f64::NEG_INFINITY, 1.0, Vec3::ZERO, Vec3::new(0.1, 0.0, 0.0)),
+        Segment::hyperbolic(0.0, 1.0, Vec3::ZERO, Vec3::new(2.0, 0.0, 0.0), 1.0, 0.0),
+        Segment::hyperbolic(0.0, 1.0, Vec3::ZERO, Vec3::X, 0.0, 0.0),
+        Segment::circular(0.0, 9.0, Vec3::ZERO, 2.0, 0.6, Vec3::X, Vec3::Y, 0.0),
+        Segment::circular(0.0, 9.0, Vec3::ZERO, 2.0, 0.1, Vec3::X, Vec3::X, 0.0),
+        Segment::null(0.0, f64::INFINITY, Vec3::ZERO, Vec3::X),
+    ];
+    for g in &bad {
+        assert_eq!(g.validate(), Err(srkit_core::Error::InvalidInput), "{g:?}");
+    }
+    assert_eq!(srkit_core::plan::Phase::Brake.name(), "brake");
+    // leaving an "orbit" that is already at rest is no burn at all, not a division by zero
+    let (piece, end, spent) = srkit_core::plan::orbit_exit(
+        srkit_core::plan::Start {
+            t: 0.0,
+            tau: 0.0,
+            x: Vec3::ZERO,
+        },
+        Vec3::ZERO,
+        1.0,
+    );
+    assert!(piece.is_none() && spent == 0.0 && end.x == Vec3::ZERO);
+}
+
+#[test]
+fn light_cone_roots_keep_their_digits_at_any_scale() {
+    // The same scene at the scale of years and at the scale of a few seconds written in years: a ship boosting
+    // from rest, watched from the side. The roots must be as good, relative to the scene, at both.
+    for scale in [1.0, 1e-3, 1e-7, 1e-12] {
+        let a = 1.3 / scale;
+        let ship = Segment::hyperbolic(0.0, f64::INFINITY, Vec3::ZERO, Vec3::X, a, 0.0);
+        let watcher = Event::new(2.0 * scale, Vec3::new(0.3 * scale, 0.7 * scale, 0.0));
+        let t = ship.send(watcher, 0.0, f64::INFINITY).unwrap();
+        let off = watcher.t - t - ship.at(t).x.dist(watcher.x);
+        assert!(
+            off.abs() <= 1e-14 * scale,
+            "scale {scale}: off the cone by {off:e}"
+        );
+        let lit = Event::new(0.1 * scale, Vec3::new(-0.2 * scale, 0.1 * scale, 0.0));
+        let t = ship.recv(lit, 0.0, f64::INFINITY).unwrap();
+        let off = t - lit.t - ship.at(t).x.dist(lit.x);
+        assert!(
+            off.abs() <= 1e-14 * scale,
+            "scale {scale}: off the cone by {off:e}"
+        );
+    }
+}

@@ -1,12 +1,15 @@
 [package]
 name = "srkit-edu"
-description = "SRKit: placeholder"
+description = "Minkowski (spacetime) diagrams of srkit-core worldlines as deterministic, self-contained SVG"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 repository.workspace = true
+readme = "README.md"
 
 [dependencies]
-srkit-core.workspace = true
+srkit-core = { workspace = true, features = ["alloc"] }
+# The workspace's pinned pure-Rust maths library: every transcendental goes through it, so the same inputs give
+# the same bytes on every platform.
 libm.workspace = true

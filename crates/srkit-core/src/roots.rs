@@ -6,17 +6,33 @@
 /// Relative width at which [`newton`] stops: a few units in the last place of the root.
 pub const NEWTON_STEP_TOLERANCE: f64 = 4e-16;
 
+/// The size a root is measured against when it is itself near zero: the bracket's own size, up to 1.
+///
+/// A root at `t = 2000` is good to `4e-16 * 2000`. A root near zero cannot be held to a fraction of itself, so
+/// it is held to a fraction of the problem's scale: the larger end of the bracket, capped at 1 so that a wide
+/// bracket around a small root does not loosen the answer.
+fn scale_floor(lo: f64, hi: f64) -> f64 {
+    let size = lo.abs().max(hi.abs());
+    if size.is_finite() {
+        size.min(1.0)
+    } else {
+        1.0
+    }
+}
+
 /// Root of an increasing function on `[lo, hi]`, given `f(lo) <= 0 <= f(hi)`.
 ///
 /// `f` returns the value and the slope. Each step is Newton's where it stays inside the bracket and a bisection
 /// otherwise, so the bracket always shrinks. Stops when a step moves the root by less than
-/// [`NEWTON_STEP_TOLERANCE`] of its size (or of 1, whichever is larger), when the bracket is twice that, or after
-/// 100 evaluations.
+/// [`NEWTON_STEP_TOLERANCE`] of its size (or of the bracket's size, up to 1, if that is larger), when the bracket
+/// is twice that, or after 100 evaluations. The same accuracy holds whether times are thousands of years or
+/// millionths of one.
 pub fn newton<F>(mut f: F, lo: f64, hi: f64, guess: f64) -> f64
 where
     F: FnMut(f64) -> (f64, f64),
 {
     let (mut a, mut b) = (lo, hi);
+    let floor = scale_floor(lo, hi);
     let mut t = guess.max(a).min(b);
     for _ in 0..100 {
         let (value, slope) = f(t);
@@ -33,7 +49,7 @@ where
         if !(next > a && next < b) {
             next = 0.5 * (a + b);
         }
-        let scale = t.abs().max(1.0);
+        let scale = t.abs().max(floor);
         if (next - t).abs() <= NEWTON_STEP_TOLERANCE * scale
             || b - a <= 2.0 * NEWTON_STEP_TOLERANCE * scale
         {
@@ -55,8 +71,9 @@ where
     F: FnMut(f64) -> f64,
 {
     let (mut a, mut b) = (lo, hi);
+    let floor = scale_floor(lo, hi);
     for _ in 0..200 {
-        if b - a <= NEWTON_STEP_TOLERANCE * b.abs().max(1.0) {
+        if b - a <= NEWTON_STEP_TOLERANCE * b.abs().max(floor) {
             break;
         }
         let m = 0.5 * (a + b);

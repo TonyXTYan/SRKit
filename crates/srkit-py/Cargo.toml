@@ -1,0 +1,35 @@
+[package]
+name = "srkit-py"
+description = "Python bindings for SRKit: piecewise-analytic worldlines, light-cone queries and exact integer clocks"
+version = "0.2.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+repository = "https://github.com/TonyXTYan/The-Special-Relativity-Game"
+readme = "README.md"
+
+# This crate needs a Python toolchain (PyO3 + maturin), so the srkit workspace excludes it and it is its own
+# workspace root. The empty table stops cargo from looking upwards. The Rust toolchain is still the one pinned by
+# `../../rust-toolchain.toml`, which rustup finds from here.
+[workspace]
+
+[lib]
+name = "_srkit"
+crate-type = ["cdylib"]
+# No Rust tests or doctests live here: the tests are pytest, run against the built wheel.
+test = false
+doctest = false
+
+[dependencies]
+srkit-core = { path = "../srkit-core" }
+# Same pin as the srkit workspace, so that `bnum::BUint` here is the type the core's clocks are built from.
+bnum = { version = "=0.12.0", default-features = false }
+# abi3-py39: one wheel serves CPython 3.9 and later.
+pyo3 = { version = "0.30.1", features = ["abi3-py39"] }
+
+# As the srkit workspace (no fast-math, one codegen unit), except that a panic unwinds: PyO3 turns it into a
+# Python exception instead of ending the interpreter.
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

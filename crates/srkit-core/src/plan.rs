@@ -28,6 +28,20 @@ pub enum Phase {
     Jump,
 }
 
+impl Phase {
+    /// The phase as a lower-case word: `rest`, `boost`, `coast`, `brake`, `orbit`, `jump`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Rest => "rest",
+            Self::Boost => "boost",
+            Self::Coast => "coast",
+            Self::Brake => "brake",
+            Self::Orbit => "orbit",
+            Self::Jump => "jump",
+        }
+    }
+}
+
 /// Where and when a plan (or its next piece) begins.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Start {
@@ -502,5 +516,9 @@ pub fn orbit_entry(
 /// Leave a circle moving at velocity `v`: brake along the tangent to rest at proper acceleration `a`.
 pub fn orbit_exit(start: Start, v: Vec3, a: f64) -> (Option<Piece>, End, f64) {
     let b = v.norm();
+    if !(b > 0.0) {
+        // already at rest: nothing to brake
+        return brake(start, Vec3::X, 0.0, a);
+    }
     brake(start, v / b, libm::atanh(b), a)
 }
