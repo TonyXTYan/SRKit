@@ -153,9 +153,9 @@ function finish() {
     near(SRKit.gr.kerrIscoRadius(0), 6, 'Schwarzschild ISCO at 6 GM/c^2'); near(SRKit.gr.kerrIscoRadius(1), 1, 'extreme Kerr, prograde', 1e-6);
   }
 
-  // ---- exact time: decimal strings or BigInt, either width ----
+  // ---- exact time: decimal strings or BigInt, the default clock ----
   const T = SRKit.time, epoch = '3' + '0'.repeat(110);
-  ok(T.u384.bits === 384 && T.u512.bits === 512 && T.bits === 384, 'two widths');
+  ok(T.u384.bits === 384 && T.u512.bits === 512 && T.u768.bits === 768 && T.u1024.bits === 1024 && T.bits === 384 && T.ticksPerSecond === 1000 && T.gridPerMetre === 1, 'four widths; the default is 384 bits, milliseconds, metres');
   ok(T.u512.add(epoch, '1') === '3' + '0'.repeat(109) + '1' && T.u512.add(epoch, '-1') === '2' + '9'.repeat(110), 'add at an epoch no double can hold');
   ok(T.add(10n ** 100n, 5n) === 10n ** 100n + 5n && T.diff(7n, 10n ** 30n) === 7n - 10n ** 30n, 'BigInt in, BigInt out');
   ok(T.cmp('100', '99') === 1 && T.cmp('5', '5') === 0 && T.cmp(3n, 10n ** 90n) === -1, 'cmp');
@@ -166,6 +166,39 @@ function finish() {
   ok(T.u512.arrived(epoch, arrival, [4.0175e16, 0, 0]) && !T.u512.arrived(epoch, T.u512.add(arrival, '-1'), [4.0175e16, 0, 0]), 'arrived flips exactly at the first arrival');
   ok(T.classify('1000', [299792458, 0, 0]) === 'null' && T.classify('1000', [299792457, 0, 0]) === 'timelike' && T.classify('-1000', [0, 299792459, 0]) === 'spacelike', 'classify, exactly on the cone');
   assert.throws(() => T.add('-5', '1'), RangeError); assert.throws(() => T.add('1' + '0'.repeat(120), '1'), /out of range/); assert.throws(() => T.u512.add('0', '-1'), /out of range/); checks += 3;
+
+  // ---- any clock: four widths, each at any tick and any grid (R71.4) ----
+  const C = 299792458n, RES = [[1e3, 1], [1e6, 1], [1e9, 1e3], [1e12, 1e6], [1, 1], [60, 100], [1024, 3]];
+  for (const bits of [384, 512, 768, 1024]) {
+    for (const [tps, gpm] of RES) {
+      const K = T.clock({ bits, ticksPerSecond: tps, gridPerMetre: gpm }), one = [C * BigInt(gpm), 0n, 0n], sent = 3n * 10n ** 60n;
+      const heard = K.firstArrival(sent, one);
+      ok(heard - sent === BigInt(tps) && K.lightTicks(one) === String(tps), `U${bits} at ${tps} ticks/s on a 1/${gpm} m grid: one light-second is one second of ticks`);
+      ok(K.arrived(sent, heard, one) && !K.arrived(sent, heard - 1n, one) && K.classify(BigInt(tps), one) === 'null' && K.classify(BigInt(tps) - 1n, one) === 'spacelike', `U${bits} ${tps}/${gpm}: arrived flips at that tick, which is on the cone`);
+      ok(K.lightTicks([C * BigInt(gpm) + 1n, 0n, 0n]) === String(tps + 1), `U${bits} ${tps}/${gpm}: one grid step further is one tick later`);
+      ok(K.lightTicks([299792458, 0, 0]) === String(tps), `U${bits} ${tps}/${gpm}: the same from metres`);
+    }
+  }
+  const ns768 = T.clock({ bits: 768, ticksPerSecond: 1e9, gridPerMetre: 1e3 });
+  near(ns768.reachLog10Years, 214.7, 'U768 at a nanosecond reaches 10^214.7 years', 1e-3); near(T.reachLog10Years, 105.1, 'U384 at a millisecond reaches 10^105.1 years', 1e-3);
+  near(ns768.lightStepsPerTick, 299.792458, 'light covers 300 mm a nanosecond', 1e-12); near(T.clock({ ticksPerSecond: 1e9 }).lightStepsPerTick, 0.299792458, 'and less than one metre: a nanosecond needs a finer grid', 1e-12);
+  ok(T.u1024.max === String(2n ** 1024n - 1n) && T.u768.max === String(2n ** 768n - 1n) && T.max === String(2n ** 384n - 1n), 'the largest time of each width, 309 digits at 1,024 bits');
+  ok(T.u1024.add(T.u1024.max, '-1') === String(2n ** 1024n - 2n) && T.u1024.diff('0', T.u1024.max) === '-' + T.u1024.max, 'arithmetic at the full width');
+  assert.throws(() => T.u768.add(T.u768.max, '1'), /out of range/); assert.throws(() => T.u768.add('1' + '0'.repeat(232), '0'), /out of range/); checks += 2;
+  // 1e200 years of picoseconds: beyond 512 bits, exact in 768
+  const ps = T.clock({ bits: 768, ticksPerSecond: 1e12, gridPerMetre: 1e6 }), far = 31557600n * 10n ** 212n;
+  assert.throws(() => T.clock({ bits: 512, ticksPerSecond: 1e12, gridPerMetre: 1e6 }).add(far, 1n), /out of range/); checks++;
+  const across = [88n * 10n ** 29n, 3n, -7n], echo = ps.firstArrival(far, across);
+  ok(ps.arrived(far, echo, across) && !ps.arrived(far, echo - 1n, across) && typeof echo === 'bigint', 'an arrival across 8.8e24 m in micrometres, exact to the picosecond at 1e200 years');
+  // far positions as grid steps are exact; as floats they are not: 4.0175e16 m + 1 m is not a double
+  ok(T.lightTicks([40175000000000001n, 0n, 0n]) !== T.lightTicks([40175000000000001n + 299792n, 0n, 0n]) && T.lightTicks(['40175000000000000', '0', '0']) === T.lightTicks([4.0175e16, 0, 0]), 'a displacement in grid steps, as BigInt or text');
+  assert.throws(() => T.lightTicks([1, 2n, 3]), TypeError); assert.throws(() => T.lightTicks(['1.5', '0', '0']), RangeError); assert.throws(() => T.lightTicks([10n ** 40n, 0n, 0n]), /out of range/); checks += 3;
+  // seconds and phase follow the tick
+  ok(ns768.seconds(10n ** 150n + 90n * 10n ** 9n, 10n ** 150n) === 90 && ns768.seconds('0', '1500000000') === -1.5 && ns768.seconds(2n ** 60n, 0n) === null, 'seconds at a nanosecond tick');
+  const yearNs = 31557600n * 10n ** 9n;   // 3.2e16 ticks: past 2^53, so the period is a BigInt
+  ok(ns768.mod(10n ** 150n, yearNs) === 10n ** 150n % yearNs && ns768.mod(10n ** 150n, 1000) === 0 && ns768.mod('7', 5) === 2 && T.mod('7', 0) === null && T.mod('7', 2.5) === null && T.mod('7', 2 ** 60) === null, 'mod with a period past 2^53 as a BigInt');
+  for (const bad of [{ bits: 256 }, { bits: 640 }, { ticksPerSecond: 0 }, { ticksPerSecond: 1e13 }, { ticksPerSecond: 1000.5 }, { gridPerMetre: 0 }, { gridPerMetre: 1e7 }, { ticksPerSecond: NaN }]) { assert.throws(() => T.clock(bad), RangeError); checks++; }
+  ok(Object.isFrozen(ns768) && T.clock().bits === 384 && T.clock().ticksPerSecond === 1000, 'clock() with no options is the default clock');
 
   // ---- other hosts ----
   const src = fs.readFileSync(path.join(dist, 'srkit.js'), 'utf8');

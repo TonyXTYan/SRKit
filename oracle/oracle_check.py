@@ -254,6 +254,47 @@ row('SR-72', v_rot / c,
 row('SR-73', 1 / math.sqrt(1 - (v_rot / c) ** 2) - 1,
     f'v=229 km/s gives {1/math.sqrt(1-(229e3/c)**2)-1:.2e}')
 
+# ---- navigation (docs/design/maps-and-navigation.md; tables in navigation_maps.py) ----
+row('SR-74', c * c / g0 / ly, 'below ~c^2/a tau ~ 2 sqrt(d/a); above, tau ~ (2c/a) ln(ad/c^2)')
+row('SR-75', 2 * c / g0 / yr * math.log(10), 'slope of tau vs log10(d) for d >> c^2/a')
+tp, ttp, _, _, _ = flip(d_prox, g0)
+row('SR-76', tp, f'd = {d_prox} ly')
+row('SR-77', ttp)
+row('SR-78', flip(2.6e4, g0)[0], 'round 26,000 ly; tau is logarithmic in d, so the exact R0 barely matters')
+row('SR-79', flip(2.5e6, g0)[0], 'flat space: the Local Group is bound, so Hubble flow is ignored')
+row('SR-103', flip(1e5, 10 * g0)[0], 'a = 10 g0 (crew limits are a tech branch, 24 Oct)')
+row('SR-104', flip(1e5, 100 * g0)[0], 'a = 100 g0')
+row('SR-105', 2 * (c * c / g0 / ly) * (math.cosh(10 / (2 * c / g0 / yr)) - 1),
+    'inverse: d = (2c^2/a)(cosh(a tau/2c) - 1)')
+row('SR-106', 2 * c / g0 / yr * (1 - math.exp(-pg)),
+    f'2(c/a)(1 - e^-phi) = null coordinate u at arrival; equals SR-04 minus d/c = {eg:.4f}')
+row('SR-107', g0 * yr / c, 'photon rocket R = e^(2 phi) = e^(a tau / c) for flip-and-burn')
+row('SR-108', 1 - math.exp(-3 * g0 * yr / c), 'u = (c/a)(1 - e^(-a tau/c)) on the accel leg; v mirrors it about the flip')
+row('SR-109', math.exp(pg), 'gamma(1 + beta) at the flip; home plays at the inverse rate')
+row('SR-110', math.degrees(math.asin(1 / gg)) * 3600, 'cos theta\' = beta for theta = 90 deg: sin theta\' = 1/gamma')
+row('SR-88', TCMB0 * math.exp(pg), f'astern: {TCMB0*math.exp(-pg):.2e} K; starlight at 550 nm arrives at {550e-9/math.exp(pg)*1e12:.1f} pm')
+row('SR-89', 220e3 / c * (1e5 + tt), 'v x (light age d/c + galactic trip time t)')
+row('SR-90', 30e3 / c * (d_prox + ttp) * ly / AU, '30 km/s: a typical nearby-star speed relative to the Sun (assumption)')
+_gc = 1e4
+_phic = math.acosh(_gc)
+_dacc = (c * c / g0 / ly) * (_gc - 1)
+row('SR-91', 2 * c / g0 / yr * _phic + (1e5 - 2 * _dacc) / math.sinh(_phic),
+    'accelerate to gamma_c, coast at gamma_c beta_c, decelerate')
+row('SR-92', math.exp(2 * _phic), f'vs {math.exp(2*pg):.3g} without a cap (SR-06): +{2*c/g0/yr*_phic + (1e5-2*_dacc)/math.sinh(_phic) - tg:.1f} yr for 1/{math.exp(2*pg)/math.exp(2*_phic):.0f} of the fuel')
+row('SR-93', 2 * flip(5e4, g0)[0], f'two 50,000 ly legs; direct trip {tg:.2f} yr (SR-03); galactic time {2*flip(5e4, g0)[1]:.1f} yr vs {tt:.1f}')
+_gl = loop_gamma(100)
+row('SR-94', math.degrees(math.acos(math.sqrt(1 - 1 / _gl ** 2))), 'acos(beta): a source at 90 deg in the galactic frame; also where the forward hemisphere ends')
+row('SR-95', _gl - 1, 'Thomas precession for circular motion: Omega_T = (gamma - 1) omega, so gamma - 1 turns per lab-frame lap')
+row('SR-96', 5e4 * math.exp(pg), 'ship-frame light age = R x D with D = gamma(1 + beta cos theta); galactic light age is R = 50,000 yr')
+row('SR-97', 5e4 * math.exp(-pg), 'same rule astern: D = e^-phi')
+row('SR-98', flip(1e5, 0.1 * g0)[0], 'a = 0.1 g0')
+row('SR-99', flip(1e5, 0.01 * g0)[0], 'a = 0.01 g0')
+_a1 = g0 * yr / c; _tf = tg / 2; _ts = math.log(2 - math.exp(-pg)) / _a1
+row('SR-100', (_tf - _ts) / 2, f'radar distance = half the ping round trip; ping leaves at seat time ln(2 - e^-phi)/a = {_ts:.4f} yr; radar time {(_tf + _ts) / 2:.3f} yr')
+row('SR-101', 2 / (math.exp(2 * pg) + 1), '1 - beta = 1 - tanh(phi) = 2/(e^(2 phi) + 1), no cancellation; about 1/(2 gamma^2)')
+_pw = math.acosh(1 + (g0 * yr / c) * 13400 / 2)
+row('SR-102', 6700 * math.exp(_pw), 'Westerlund 1 (13,400 ly) at the flip of a 1 g ride: R x D with R = 6,700 ly, D = e^phi, phi = acosh(1 + a d/2); = gamma x 13,400 yr of its own time')
+
 # ======================= DT: deep time (deep-time-engine.md sections 7 and 1) =======================
 ms_per_yr = yr * 1e3
 row('DT-01', math.log2(1e100 * ms_per_yr), 'ceil -> 368 bits')

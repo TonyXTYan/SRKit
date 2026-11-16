@@ -255,7 +255,7 @@ dependencies = [
 
 [[package]]
 name = "srkit-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bnum",
  "libm",
@@ -264,7 +264,7 @@ dependencies = [
 
 [[package]]
 name = "srkit-edu"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "libm",
  "srkit-core",
@@ -272,7 +272,7 @@ dependencies = [
 
 [[package]]
 name = "srkit-flrw"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "libm",
  "proptest",
@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "srkit-gr"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "libm",
  "proptest",
@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "srkit-log"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "proptest",
  "srkit-core",
@@ -298,7 +298,7 @@ dependencies = [
 
 [[package]]
 name = "srkit-wasm"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "srkit-core",
  "srkit-flrw",

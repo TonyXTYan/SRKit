@@ -1408,7 +1408,7 @@ h3.sub { margin: 4px 0 0; font: 600 13px var(--font-body); color: var(--ink); }
     if (TR || turning) requestAnimationFrame(drawMap);
   }
   function startTransition(mutate) { const from = projParams(); mutate(); TR = { from, t0: performance.now(), dur: 850 }; syncControls(); drawMap(); }
-  // the date of the image you are seeing, on the source's own clock: the one stamp every frame agrees on (R39.3)
+  // the date of the image you are seeing, on the source's own clock: the one stamp every frame agrees on (R73.3)
   function imgDate(te) {
     const T = S.mode === 'transit', ref = T ? 'launch' : 'the start of the orbit';
     return Math.abs(te) < 1e-9 ? ref : `${yrs(Math.abs(te), { dp: 1 })} ${te < 0 ? 'before' : 'after'} ${ref}`;

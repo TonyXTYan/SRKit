@@ -92,7 +92,7 @@ The table under Status records what was checked while the page was a mockup in t
 | Panel toggles | Hiding the chart and sky views cuts a redraw from about 230 ms to 5 ms |
 | Lazy drawing, Debug panel | Checked in headless Chromium: off-screen panels skip seat-time redraws and catch up when scrolled into view; a seat-time change at the top costs about 46 ms instead of 427 ms; the slider keeps the same width at all 61 tested seat times (809.6 px at 1280 px wide, 306 px at 390 px) |
 | Phone gyro, WebXR | Code paths written to the standard APIs, **not yet tried on a real phone or headset** |
-| Physics | The numbers come from `navigation_maps.py` and the navigation rows of the game's oracle (SR-74 to SR-101 on its branch `claude/maps-and-navigation`) |
+| Physics | The numbers come from `navigation_maps.py` and the navigation rows of the oracle (`oracle/oracle.csv`: SR-74 to SR-79 and SR-88 to SR-110; the status notes above quote them) |
 
 ## Credits
 

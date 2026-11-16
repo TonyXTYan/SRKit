@@ -1,4 +1,4 @@
-//! The engine's stored clock at three widths and three tick lengths (questions R23.8 and R71.4): the cost of
+//! The engine's stored clock at four widths and three tick lengths (questions R23.8 and R71.4): the cost of
 //! the operations the engine does on every event, and how far each combination reaches. Run in release mode:
 //!
 //!     cargo run --release --example clock_widths
@@ -107,12 +107,15 @@ fn main() {
     );
     bench::<6>("U384  ms  metre", ms);
     bench::<8>("U512  ms  metre", ms);
+    bench::<12>("U768  ms  metre", ms);
     bench::<16>("U1024 ms  metre", ms);
     bench::<6>("U384  us  metre", us);
     bench::<8>("U512  us  metre", us);
+    bench::<12>("U768  us  metre", us);
     bench::<16>("U1024 us  metre", us);
     bench::<6>("U384  ns  millimetre", ns);
     bench::<8>("U512  ns  millimetre", ns);
+    bench::<12>("U768  ns  millimetre", ns);
     bench::<16>("U1024 ns  millimetre", ns);
     println!("add: one tick later. diff: difference of two times. cmp: which is later. phase: the time modulo a year.");
     println!("ticks: light-travel time over a displacement (integer square root). arrived: the exact causal check.");

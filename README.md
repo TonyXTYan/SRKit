@@ -4,7 +4,7 @@ Special relativity in 3+1 Minkowski spacetime from closed forms: piecewise-analy
 
 It is the engine for *The Special Relativity Game* and stands alone: nothing here depends on the game. The game's repository carries this one as a submodule. This repository also holds the [Relativistic Navigator](navigator/README.md), a single-page explorer of relativistic travel that runs on the engine.
 
-**Status: first complete version, 0.2.0.** MIT licence ([`LICENSE`](LICENSE)); the Navigator's star table has its own terms ([`navigator/STAR-DATA.md`](navigator/STAR-DATA.md)). Nothing is on crates.io, npm or PyPI yet: the published name is not settled, so every crate is `publish = false`. Code and text were written with [Claude Code](https://claude.com/claude-code); see Credits at the end.
+**Status: version 0.3.0, the first complete one with a free choice of clock.** MIT licence ([`LICENSE`](LICENSE)); the Navigator's star table has its own terms ([`navigator/STAR-DATA.md`](navigator/STAR-DATA.md)). Nothing is on crates.io, npm or PyPI yet: the published name is not settled, so every crate is `publish = false`. Code and text were written with [Claude Code](https://claude.com/claude-code); see Credits at the end.
 
 Comments and READMEs cite the game's design record in places: question IDs such as R71.4, and paths under `docs/` such as `docs/engine/spacetime-package-plan.md` (the plan this package follows). That record lives in the game's repository, which is not public yet.
 
@@ -41,7 +41,7 @@ Comments and READMEs cite the game's design record in places: question IDs such 
 
 **Seeing** ([`optics.rs`](crates/srkit-core/src/optics.rs), [`kinematics.rs`](crates/srkit-core/src/kinematics.rs), [`frames.rs`](crates/srkit-core/src/frames.rs)). Aberration and Doppler in a ship's axes, the rate a distant clock appears to run, boosts by a rapidity vector, radar and light-cone coordinates of an event for any observer, diffraction and link budgets. [`rindler.rs`](crates/srkit-core/src/rindler.rs): the horizon of an accelerating ship and the last moment a signal from a given place can still catch it.
 
-**Exact time** ([`time.rs`](crates/srkit-core/src/time.rs), [`causal.rs`](crates/srkit-core/src/causal.rs)). Stored time is an unsigned count of ticks in 384, 512 or 1,024 bits, with checked arithmetic and integer modular phase. The game's tick is a millisecond on a metre grid; `causal::Resolution` names others (a microsecond, or a nanosecond on a millimetre grid) for the `_at` forms of the exact checks. Causal decisions are made in integers: with positions rounded to a one-metre grid, "has this signal arrived by tick n?" is `(c·Δt)² ≥ 10⁶·|Δx|²`, which holds or fails with no rounding. A moving receiver's arrival is found in floating point and then settled to the first tick that passes the exact check. This is the "exact predicates, inexact constructions" rule of computational geometry (plan §3.1).
+**Exact time** ([`time.rs`](crates/srkit-core/src/time.rs), [`causal.rs`](crates/srkit-core/src/causal.rs)). Stored time is an unsigned count of ticks with checked arithmetic and integer modular phase, and the application chooses three things: the width (384, 512, 768 or 1,024 bits), the tick (any whole number of ticks to the second, down to a picosecond) and the grid positions are rounded to (any whole number of steps to the metre, down to a micrometre). `causal::Clock` holds the three together: `Clock768::new(Resolution::NANOSECOND_MILLIMETRE)` is 768 bits of nanoseconds on a millimetre grid, good for 10²¹⁴ years. The default, and the game's tick for now, is a millisecond on a metre grid. Causal decisions are made in integers: with positions on the grid, "has this signal arrived by tick n?" is `(c·g·Δt)² ≥ f²·|Δx|²` for `f` ticks to the second and `g` steps to the metre, which holds or fails with no rounding. A moving receiver's arrival is found in floating point and then settled to the first tick that passes the exact check. This is the "exact predicates, inexact constructions" rule of computational geometry (plan §3.1). The grid must stay much finer than the distance light covers in a tick, so a nanosecond tick needs a millimetre grid; `cargo run --release --example clock_widths` prints what each width costs and reaches.
 
 ## Build and test
 
@@ -53,7 +53,7 @@ cargo test --workspace --release --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo fmt --all -- --check
 cargo run --example trip                        # a 1 g ride to Proxima, start to finish
-cargo run --release --example clock_widths      # U384, U512 and U1024 at ms, us and ns ticks
+cargo run --release --example clock_widths      # U384, U512, U768 and U1024 at ms, us and ns ticks
 ```
 
 The JavaScript build (Python 3 and Node):
@@ -105,15 +105,17 @@ const ship = SRKit.wl.make([SRKit.seg.mk.rest(2000, 2100, [0, 0, 0]), ...ride.pi
                             SRKit.seg.mk.rest(ride.end.t, Infinity, ride.end.X)], 2100, 0);
 const tSeen = SRKit.wl.send(ship, 2105, [0, 0, 0]);                 // when the light Earth sees in 2105 left the ship
 SRKit.time.arrived('3' + '0'.repeat(110), '3' + '0'.repeat(98) + '134009348401', [4.0175e16, 0, 0]);   // exact, at any epoch
+const clock = SRKit.time.clock({ bits: 768, ticksPerSecond: 1e9, gridPerMetre: 1e3 });                // any width, tick and grid
+clock.firstArrival(10n ** 150n, [299792458000n, 0n, 0n]) - 10n ** 150n;                              // 1000000000n: a second of nanoseconds
 ```
 
 ## How it is checked
 
-201 Rust tests (core 45, cosmology 41, gravity 50, event log 8, diagrams 54, binding 3), 951 checks of the JavaScript binding and 154 of the Python binding. What they are:
+208 Rust tests (core 52, cosmology 41, gravity 50, event log 8, diagrams 54, binding 3), 1,088 checks of the JavaScript binding and 154 of the Python binding. What they are:
 
 - **Golden vectors.** `tools/golden_core.py` computes 610 cases from their textbook formulas (or a quadrature, or a root found by mpmath) at 60 significant digits, sharing no code with the crate. `tests/golden.rs` holds each family to a stated relative tolerance. Measured worst errors: 1e-15 to 5e-15 for segments, rides, optics, boosts, burns and Kepler's equation; 1e-11 where the input is a velocity near c; 6e-12 for reach (its iteration stops at 1e-12 by design).
 - **Third parties.** The cosmology is cross-checked against astropy and the Kerr orbits against KerrGeoPy (agreement to 1e-9; `crates/srkit-gr/README.md`).
-- **The physics oracle.** [`oracle/oracle.csv`](oracle/README.md) is a table of reference numbers shared with the game. `srkit-core` recomputes 47 of its rows through the public API, `srkit-flrw` and `srkit-gr` the rows that are theirs. Rows that are game design are left to `oracle/oracle_check.py`, which reproduces every row with mpmath.
+- **The physics oracle.** [`oracle/oracle.csv`](oracle/README.md) is the table of reference numbers, 148 rows, shared with the game and kept here. `srkit-core` recomputes 47 of its rows through the public API, `srkit-flrw` and `srkit-gr` the rows that are theirs. Rows that are game design are left to `oracle/oracle_check.py`, which reproduces every row with mpmath.
 - **Properties** (proptest): proper time inverts; nothing outruns light; velocity is the derivative of position; light-cone roots lie on the cone; the interval is invariant under boosts; steered thrust holds its proper acceleration and agrees with the straight form when aligned; burns obey the rocket equation; itineraries join in position and velocity and end on their target; the event log gives one history however it is read.
 - **Exact causality.** On the oracle's adversarial test (arrivals a hair after a tick, DT-14), `ceil()` of the floating-point answer is a tick early 2,678 times in 100,000; the settled tick is never early and never late.
 - **The applications.** The [Navigator](navigator/README.md) and the game's alpha 3.3e3 prototype run on it, and each has a parity test against the JavaScript physics it replaced. The Navigator's is in [`navigator/test/`](navigator/test/README.md): 7,145 and 926 assertions against the original equations, and 61 browser checks.

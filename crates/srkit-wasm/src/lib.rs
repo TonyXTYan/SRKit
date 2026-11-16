@@ -9,7 +9,8 @@
 //!
 //! * `srkit_in()`: 64 `f64` slots the caller writes before a call (a segment, mostly).
 //! * `srkit_out()`: 192 `f64` slots a call writes its results to.
-//! * `srkit_text(slot)`: three 256-byte ASCII buffers for exact times (inputs in slots 0 and 1, results in 2).
+//! * `srkit_text(slot)`: four 320-byte ASCII buffers for exact integers (times in slots 0 and 1, results in 2,
+//!   an exact displacement in 3).
 //! * `srkit_batch(len)`: a growable `f64` buffer for batch calls.
 //!
 //! ## A segment in the input buffer (21 slots from an offset)
@@ -31,7 +32,7 @@
 use std::cell::RefCell;
 
 use srkit_core::{
-    causal::{self, GridVec},
+    causal::{self, Clock, GridVec, Resolution},
     frames, kepler,
     kinematics::{self, Event},
     optics,
@@ -46,17 +47,19 @@ use srkit_core::{
 };
 
 /// Bumped whenever an export's meaning or a buffer layout changes.
-pub const ABI_VERSION: u32 = 4;
+pub const ABI_VERSION: u32 = 5;
 /// Slots a segment occupies in the input buffer.
 pub const SEG_SLOTS: usize = 21;
 const IN_SLOTS: usize = 64;
 const OUT_SLOTS: usize = 192;
-const TEXT_BYTES: usize = 256;
+/// Enough for a 1,024-bit integer in decimal (309 digits) and a sign.
+const TEXT_BYTES: usize = 320;
+const TEXT_SLOTS: usize = 4;
 
 thread_local! {
     static IN: RefCell<[f64; IN_SLOTS]> = const { RefCell::new([0.0; IN_SLOTS]) };
     static OUT: RefCell<[f64; OUT_SLOTS]> = const { RefCell::new([0.0; OUT_SLOTS]) };
-    static TEXT: RefCell<[[u8; TEXT_BYTES]; 3]> = const { RefCell::new([[0; TEXT_BYTES]; 3]) };
+    static TEXT: RefCell<[[u8; TEXT_BYTES]; TEXT_SLOTS]> = const { RefCell::new([[0; TEXT_BYTES]; TEXT_SLOTS]) };
     static BATCH: RefCell<Vec<f64>> = const { RefCell::new(Vec::new()) };
     static WORLDLINES: RefCell<Arena> = const { RefCell::new(Arena { items: Vec::new(), free: Vec::new(), building: Vec::new() }) };
     static LAST_TRIP: RefCell<Option<([f64; 5], Trip)>> = const { RefCell::new(None) };
@@ -186,7 +189,7 @@ pub extern "C" fn srkit_out() -> usize {
 }
 #[no_mangle]
 pub extern "C" fn srkit_text(slot: u32) -> usize {
-    TEXT.with(|v| v.borrow()[(slot as usize).min(2)].as_ptr() as usize)
+    TEXT.with(|v| v.borrow()[(slot as usize).min(TEXT_SLOTS - 1)].as_ptr() as usize)
 }
 /// A buffer of at least `len` numbers for batch calls. The pointer is valid until the next call that grows it.
 #[no_mangle]
@@ -1144,136 +1147,188 @@ fn fail(e: Error) -> i32 {
     -(status(e) as i32)
 }
 
-fn grid(dx: f64, dy: f64, dz: f64) -> Result<GridVec, Error> {
-    GridVec::from_metres(dx, dy, dz)
+/// What a call's tick and grid are: `ticks_per_second` and `grid_per_metre` as whole numbers.
+fn resolution(ticks_per_second: f64, grid_per_metre: f64) -> Result<Resolution, Error> {
+    let whole = |v: f64| (1.0..=1e12).contains(&v) && v.fract() == 0.0;
+    if !(whole(ticks_per_second) && whole(grid_per_metre)) {
+        return Err(Error::InvalidInput);
+    }
+    Resolution::new(ticks_per_second as u64, grid_per_metre as u64)
 }
 
-macro_rules! exact_time {
-    ($n:literal, $add:ident, $diff:ident, $cmp:ident, $modulo:ident, $seconds:ident, $ticks:ident, $arrival:ident, $arrived:ident, $classify:ident) => {
-        /// Timestamp (text slot 0) plus signed duration (slot 1), as decimal milliseconds in slot 2. Returns the
-        /// result's length, or minus a status.
-        #[no_mangle]
-        pub extern "C" fn $add(len_a: u32, len_b: u32) -> i32 {
-            let run = || -> Result<String, Error> {
-                let a = Timestamp::<$n>::from_decimal(&text(0, len_a).ok_or(Error::InvalidInput)?)?;
-                let b = Duration::<$n>::from_decimal(&text(1, len_b).ok_or(Error::InvalidInput)?)?;
-                Ok(a.checked_add(b)?.to_string())
-            };
-            run().map_or_else(fail, |s| put_text(&s))
-        }
-        /// Timestamp (slot 0) minus timestamp (slot 1), as a signed duration in slot 2.
-        #[no_mangle]
-        pub extern "C" fn $diff(len_a: u32, len_b: u32) -> i32 {
-            let run = || -> Result<String, Error> {
-                let a = Timestamp::<$n>::from_decimal(&text(0, len_a).ok_or(Error::InvalidInput)?)?;
-                let b = Timestamp::<$n>::from_decimal(&text(1, len_b).ok_or(Error::InvalidInput)?)?;
-                Ok(a.signed_duration_since(b).to_string())
-            };
-            run().map_or_else(fail, |s| put_text(&s))
-        }
-        /// Order of two timestamps: -1, 0 or 1; -2 if either is invalid.
-        #[no_mangle]
-        pub extern "C" fn $cmp(len_a: u32, len_b: u32) -> i32 {
-            let run = || -> Result<i32, Error> {
-                let a = Timestamp::<$n>::from_decimal(&text(0, len_a).ok_or(Error::InvalidInput)?)?;
-                let b = Timestamp::<$n>::from_decimal(&text(1, len_b).ok_or(Error::InvalidInput)?)?;
-                Ok(a.cmp(&b) as i32)
-            };
-            run().unwrap_or(-2)
-        }
-        /// The timestamp in slot 0 modulo a whole number of milliseconds: an exact phase. NaN if invalid.
-        #[no_mangle]
-        pub extern "C" fn $modulo(len_a: u32, period_ms: f64) -> f64 {
-            let run = || -> Result<f64, Error> {
-                if !((1.0..=9_007_199_254_740_992.0).contains(&period_ms)
-                    && period_ms.fract() == 0.0)
-                {
-                    return Err(Error::InvalidInput);
-                }
-                let a = Timestamp::<$n>::from_decimal(&text(0, len_a).ok_or(Error::InvalidInput)?)?;
-                Ok(a.modulo_millis(period_ms as u64)? as f64)
-            };
-            run().unwrap_or(f64::NAN)
-        }
-        /// Timestamp (slot 0) minus timestamp (slot 1) in seconds, subtracted exactly before the conversion. NaN
-        /// if the difference is beyond 2^53 ms.
-        #[no_mangle]
-        pub extern "C" fn $seconds(len_a: u32, len_b: u32) -> f64 {
-            let run = || -> Result<f64, Error> {
-                let a = Timestamp::<$n>::from_decimal(&text(0, len_a).ok_or(Error::InvalidInput)?)?;
-                let b = Timestamp::<$n>::from_decimal(&text(1, len_b).ok_or(Error::InvalidInput)?)?;
-                a.local_seconds_since(b)
-            };
-            run().unwrap_or(f64::NAN)
-        }
-        /// Light-travel time over a displacement in metres, rounded up to whole milliseconds, in slot 2.
-        #[no_mangle]
-        pub extern "C" fn $ticks(dx: f64, dy: f64, dz: f64) -> i32 {
-            grid(dx, dy, dz)
-                .and_then(causal::light_ticks::<$n>)
-                .map_or_else(fail, |d| put_text(&d.to_string()))
-        }
-        /// The first tick at which a signal emitted at the timestamp in slot 0 has crossed the displacement.
-        #[no_mangle]
-        pub extern "C" fn $arrival(len_a: u32, dx: f64, dy: f64, dz: f64) -> i32 {
-            let run = || -> Result<String, Error> {
-                let a = Timestamp::<$n>::from_decimal(&text(0, len_a).ok_or(Error::InvalidInput)?)?;
-                Ok(causal::first_arrival(a, grid(dx, dy, dz)?)?.to_string())
-            };
-            run().map_or_else(fail, |s| put_text(&s))
-        }
-        /// Whether a signal emitted at the timestamp in slot 0 has crossed the displacement by the one in slot 1:
-        /// 1 yes, 0 no, negative if invalid. Exact.
-        #[no_mangle]
-        pub extern "C" fn $arrived(len_a: u32, len_b: u32, dx: f64, dy: f64, dz: f64) -> i32 {
-            let run = || -> Result<i32, Error> {
-                let a = Timestamp::<$n>::from_decimal(&text(0, len_a).ok_or(Error::InvalidInput)?)?;
-                let b = Timestamp::<$n>::from_decimal(&text(1, len_b).ok_or(Error::InvalidInput)?)?;
-                Ok(causal::arrived(a, b, grid(dx, dy, dz)?) as i32)
-            };
-            run().unwrap_or_else(fail)
-        }
-        /// Classify the separation of two events a signed duration (slot 0) and a displacement apart: 1 timelike,
-        /// 0 null, -1 spacelike; -2 if invalid. Exact.
-        #[no_mangle]
-        pub extern "C" fn $classify(len_a: u32, dx: f64, dy: f64, dz: f64) -> i32 {
-            let run = || -> Result<i32, Error> {
-                let a = Duration::<$n>::from_decimal(&text(0, len_a).ok_or(Error::InvalidInput)?)?;
-                Ok(match causal::classify(a, grid(dx, dy, dz)?) {
-                    causal::Causal::Timelike => 1,
-                    causal::Causal::Null => 0,
-                    causal::Causal::Spacelike => -1,
-                })
-            };
-            run().unwrap_or(-2)
+/// A call's displacement. With `len_d = 0` it is three floats of metres, rounded to the grid; otherwise it is
+/// read from text slot 3 as three signed integers of grid steps, `x,y,z`, which is exact at any distance.
+fn displacement(res: Resolution, len_d: u32, dx: f64, dy: f64, dz: f64) -> Result<GridVec, Error> {
+    if len_d == 0 {
+        GridVec::from_metres_at(res, dx, dy, dz)
+    } else {
+        GridVec::from_decimal(&text(3, len_d).ok_or(Error::InvalidInput)?)
+    }
+}
+
+/// The arguments of one exact-time call, as they cross the boundary.
+struct ClockCall {
+    op: u32,
+    res: Resolution,
+    len_a: u32,
+    len_b: u32,
+    len_d: u32,
+    d: [f64; 3],
+}
+
+impl ClockCall {
+    fn time<const N: usize>(&self, slot: usize) -> Result<Timestamp<N>, Error> {
+        let len = if slot == 0 { self.len_a } else { self.len_b };
+        Timestamp::from_decimal(&text(slot, len).ok_or(Error::InvalidInput)?)
+    }
+    fn duration<const N: usize>(&self, slot: usize) -> Result<Duration<N>, Error> {
+        let len = if slot == 0 { self.len_a } else { self.len_b };
+        Duration::from_decimal(&text(slot, len).ok_or(Error::InvalidInput)?)
+    }
+    fn dx(&self) -> Result<GridVec, Error> {
+        displacement(self.res, self.len_d, self.d[0], self.d[1], self.d[2])
+    }
+    /// The calls whose answer is an exact integer, written as decimal text.
+    fn text<const N: usize>(&self) -> Result<String, Error> {
+        let clock = Clock::<N>::new(self.res);
+        Ok(match self.op {
+            0 => self
+                .time::<N>(0)?
+                .checked_add(self.duration(1)?)?
+                .to_string(),
+            1 => self
+                .time::<N>(0)?
+                .signed_duration_since(self.time(1)?)
+                .to_string(),
+            2 => {
+                let period = text(1, self.len_b)
+                    .and_then(|p| p.parse::<u64>().ok())
+                    .ok_or(Error::InvalidInput)?;
+                self.time::<N>(0)?.modulo_ticks(period)?.to_string()
+            }
+            3 => clock.light_ticks(self.dx()?)?.to_string(),
+            4 => clock.first_arrival(self.time(0)?, self.dx()?)?.to_string(),
+            5 => Timestamp::<N>::MAX.to_string(),
+            _ => return Err(Error::InvalidInput),
+        })
+    }
+    /// The calls whose answer is a number.
+    fn number<const N: usize>(&self) -> Result<f64, Error> {
+        let clock = Clock::<N>::new(self.res);
+        Ok(match self.op {
+            0 => self.time::<N>(0)?.cmp(&self.time(1)?) as i32 as f64,
+            1 => clock.local_seconds_between(self.time(0)?, self.time(1)?)?,
+            2 => f64::from(u8::from(clock.arrived(
+                self.time(0)?,
+                self.time(1)?,
+                self.dx()?,
+            ))),
+            3 => match clock.classify(self.duration(0)?, self.dx()?) {
+                causal::Causal::Timelike => 1.0,
+                causal::Causal::Null => 0.0,
+                causal::Causal::Spacelike => -1.0,
+            },
+            4 => clock.reach_log10_years(),
+            5 => self.res.light_steps_per_tick(),
+            _ => return Err(Error::InvalidInput),
+        })
+    }
+}
+
+/// Exact time at any width and resolution, for the calls that return an exact integer. `width` is 384, 512, 768
+/// or 1,024 bits; a tick is `1 / ticks_per_second` seconds and a grid step `1 / grid_per_metre` metres. Times and
+/// durations are decimal text in slots 0 and 1; the displacement is three floats of metres, or, with
+/// `len_d > 0`, `x,y,z` in grid steps in slot 3. The answer is written to slot 2 and its length returned, or
+/// minus a status.
+///
+/// | `op` | answer | slot 0 | slot 1 |
+/// |---|---|---|---|
+/// | 0 | time plus signed duration | time | duration |
+/// | 1 | time minus time, a signed duration | time | time |
+/// | 2 | the exact phase of a time in a period of whole ticks | time | period |
+/// | 3 | light-travel time over the displacement, rounded up to whole ticks | | |
+/// | 4 | the first tick at which a signal has crossed the displacement | emission | |
+/// | 5 | the largest time the width holds | | |
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub extern "C" fn srkit_clock_text(
+    op: u32,
+    width: u32,
+    ticks_per_second: f64,
+    grid_per_metre: f64,
+    len_a: u32,
+    len_b: u32,
+    len_d: u32,
+    dx: f64,
+    dy: f64,
+    dz: f64,
+) -> i32 {
+    let run = || -> Result<String, Error> {
+        let res = resolution(ticks_per_second, grid_per_metre)?;
+        let call = ClockCall {
+            op,
+            res,
+            len_a,
+            len_b,
+            len_d,
+            d: [dx, dy, dz],
+        };
+        match width {
+            384 => call.text::<6>(),
+            512 => call.text::<8>(),
+            768 => call.text::<12>(),
+            1024 => call.text::<16>(),
+            _ => Err(Error::InvalidInput),
         }
     };
+    run().map_or_else(fail, |s| put_text(&s))
 }
 
-exact_time!(
-    6,
-    time384_add,
-    time384_diff,
-    time384_cmp,
-    time384_mod,
-    time384_seconds,
-    time384_light_ticks,
-    time384_first_arrival,
-    time384_arrived,
-    time384_classify
-);
-exact_time!(
-    8,
-    time512_add,
-    time512_diff,
-    time512_cmp,
-    time512_mod,
-    time512_seconds,
-    time512_light_ticks,
-    time512_first_arrival,
-    time512_arrived,
-    time512_classify
-);
+/// As [`srkit_clock_text`], for the calls that return a number; NaN if the input is invalid or the answer cannot
+/// be a float.
+///
+/// | `op` | answer | slot 0 | slot 1 |
+/// |---|---|---|---|
+/// | 0 | order of two times: -1, 0 or 1 | time | time |
+/// | 1 | time minus time in seconds, subtracted exactly first; NaN beyond 2^53 ticks | time | time |
+/// | 2 | whether a signal has crossed the displacement by `now`: 1 or 0 | emission | now |
+/// | 3 | the separation of two events: 1 timelike, 0 null, -1 spacelike | duration | |
+/// | 4 | log10 of the longest time the clock holds, in years | | |
+/// | 5 | grid steps light covers in a tick | | |
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub extern "C" fn srkit_clock_num(
+    op: u32,
+    width: u32,
+    ticks_per_second: f64,
+    grid_per_metre: f64,
+    len_a: u32,
+    len_b: u32,
+    len_d: u32,
+    dx: f64,
+    dy: f64,
+    dz: f64,
+) -> f64 {
+    let run = || -> Result<f64, Error> {
+        let res = resolution(ticks_per_second, grid_per_metre)?;
+        let call = ClockCall {
+            op,
+            res,
+            len_a,
+            len_b,
+            len_d,
+            d: [dx, dy, dz],
+        };
+        match width {
+            384 => call.number::<6>(),
+            512 => call.number::<8>(),
+            768 => call.number::<12>(),
+            1024 => call.number::<16>(),
+            _ => Err(Error::InvalidInput),
+        }
+    };
+    run().unwrap_or(f64::NAN)
+}
 
 // ---------------------------------------------------------------------------------------------- cosmology
 
@@ -1462,6 +1517,7 @@ pub extern "C" fn srkit_bench_clock(
     match width {
         384 => run::<6>(res, n),
         512 => run::<8>(res, n),
+        768 => run::<12>(res, n),
         1024 => run::<16>(res, n),
         _ => f64::NAN,
     }
@@ -1547,15 +1603,63 @@ mod tests {
         };
         let epoch = format!("1{}", "0".repeat(100));
         let (la, lb) = (put(0, &epoch), put(1, "-1"));
-        let len = time384_add(la, lb);
-        assert_eq!(read(len), "9".repeat(100));
-        // one light-second is exactly 1000 ticks
-        let len = time512_light_ticks(299_792_458.0, 0.0, 0.0);
-        assert_eq!(read(len), "1000");
-        assert_eq!(time384_classify(put(0, "1000"), 299_792_458.0, 0.0, 0.0), 0);
+        let text = |op, width, tps, gpm, la, lb, ld, d: [f64; 3]| {
+            srkit_clock_text(op, width, tps, gpm, la, lb, ld, d[0], d[1], d[2])
+        };
+        let num = |op, width, tps, gpm, la, lb, ld, d: [f64; 3]| {
+            srkit_clock_num(op, width, tps, gpm, la, lb, ld, d[0], d[1], d[2])
+        };
+        let none = [0.0; 3];
         assert_eq!(
-            time384_classify(put(0, "1000"), 299_792_459.0, 0.0, 0.0),
-            -1
+            read(text(0, 384, 1e3, 1.0, la, lb, 0, none)),
+            "9".repeat(100)
         );
+        // one light-second is exactly a second of ticks, at every width and at three resolutions
+        let c = 299_792_458.0;
+        for width in [384, 512, 768, 1024] {
+            assert_eq!(
+                read(text(3, width, 1e3, 1.0, 0, 0, 0, [c, 0.0, 0.0])),
+                "1000"
+            );
+            assert_eq!(
+                read(text(3, width, 1e6, 1.0, 0, 0, 0, [c, 0.0, 0.0])),
+                "1000000"
+            );
+            assert_eq!(
+                read(text(3, width, 1e9, 1e3, 0, 0, 0, [c, 0.0, 0.0])),
+                "1000000000"
+            );
+            // the same displacement as exact grid steps (millimetres), and one step further
+            let ld = put(3, "299792458000,0,0");
+            assert_eq!(read(text(3, width, 1e9, 1e3, 0, 0, ld, none)), "1000000000");
+            let ld = put(3, "299792458001,0,0");
+            assert_eq!(read(text(3, width, 1e9, 1e3, 0, 0, ld, none)), "1000000001");
+            assert_eq!(
+                num(3, width, 1e3, 1.0, put(0, "1000"), 0, 0, [c, 0.0, 0.0]),
+                0.0
+            );
+            assert_eq!(
+                num(
+                    3,
+                    width,
+                    1e3,
+                    1.0,
+                    put(0, "1000"),
+                    0,
+                    0,
+                    [c + 1.0, 0.0, 0.0]
+                ),
+                -1.0
+            );
+        }
+        // the widest time is 309 digits and fits a slot; 384 bits hold 116
+        assert_eq!(text(5, 1024, 1e3, 1.0, 0, 0, 0, none), 309);
+        assert_eq!(text(5, 384, 1e3, 1.0, 0, 0, 0, none), 116);
+        assert!((num(4, 768, 1e9, 1e3, 0, 0, 0, none) - 214.7).abs() < 0.05);
+        // a width or a resolution it does not have
+        assert!(text(5, 256, 1e3, 1.0, 0, 0, 0, none) < 0);
+        assert!(num(4, 512, 1e13, 1.0, 0, 0, 0, none).is_nan());
+        assert!(num(4, 512, 1000.5, 1.0, 0, 0, 0, none).is_nan());
+        assert!(text(3, 512, 1e3, 1.0, 0, 0, put(3, "1,2"), none) < 0);
     }
 }

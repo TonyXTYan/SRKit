@@ -1,4 +1,4 @@
-// The stored clock at three widths and three tick lengths, in WebAssembly (questions R23.8 and R71.4). Run after
+// The stored clock at four widths and three tick lengths, in WebAssembly (questions R23.8 and R71.4). Run after
 // tools/build_js.py:
 //     node tools/bench_clocks.js
 // Each round advances a time by one tick, takes a difference, compares, reduces to a yearly phase and makes an
@@ -8,7 +8,7 @@ const SRKit = require('../dist/srkit.js');
 const n = 200000, rounds = 7;
 console.log('ns per round in WebAssembly (median of ' + rounds + ' batches of ' + n + '; best in brackets)');
 for (const [tick, tps, gpm, grid] of [['ms', 1e3, 1, 'metre'], ['us', 1e6, 1, 'metre'], ['ns', 1e9, 1e3, 'millimetre']]) {
-  for (const width of [384, 512, 1024]) {
+  for (const width of [384, 512, 768, 1024]) {
     const times = [];
     let checksum;
     for (let r = 0; r < rounds; r++) {

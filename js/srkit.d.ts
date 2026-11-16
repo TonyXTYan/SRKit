@@ -168,23 +168,46 @@ export interface RocketApi {
   sailPhi(energyPerRestEnergy: number): number;
 }
 
-/** Whole milliseconds as decimal strings or BigInt; results come back in the type of the first argument. */
+/** Whole ticks as decimal strings or BigInt; results come back in the type of the first argument. */
 export type Exact = string | bigint;
+/** A displacement: three numbers of metres, rounded to the clock's grid, or three BigInts or decimal strings of grid
+ *  steps, which is exact at any distance. A number holds 53 bits, so beyond 9e15 grid steps use grid steps. */
+export type Displacement = Vec3 | [Exact, Exact, Exact];
+/** An exact clock: a width, a tick and a grid. Every decision is made in integers. */
 export interface ExactTime {
-  bits: 384 | 512;
+  bits: 384 | 512 | 768 | 1024;
+  /** Ticks to the second: 1000 for milliseconds. */
+  ticksPerSecond: number;
+  /** Grid steps to the metre: 1 for a metre grid. */
+  gridPerMetre: number;
+  /** Grid steps light covers in one tick. Keep it in the hundreds or more: a nanosecond tick needs a millimetre grid. */
+  lightStepsPerTick: number;
+  /** log10 of the longest time the clock holds, in years: 105.1 for 384 bits of milliseconds. */
+  reachLog10Years: number;
+  /** The largest time the width holds, in ticks. */
+  max: string;
   add<T extends Exact>(t: T, d: Exact): T;
   diff<T extends Exact>(a: T, b: Exact): T;
   cmp(a: Exact, b: Exact): -1 | 0 | 1;
-  /** The exact phase of t in a period of whole milliseconds. */
-  mod(t: Exact, periodMs: number): number | null;
-  /** a - b in seconds, subtracted exactly first; null beyond 2^53 ms. */
+  /** The exact phase of t in a period of whole ticks; null if the period is not a positive whole number. */
+  mod(t: Exact, period: number): number | null;
+  mod(t: Exact, period: bigint): bigint | null;
+  /** a - b in seconds, subtracted exactly first; null beyond 2^53 ticks. */
   seconds(a: Exact, b: Exact): number | null;
-  /** Light-travel time over dX metres, rounded up to whole milliseconds. */
-  lightTicks(dX: Vec3): string;
-  firstArrival<T extends Exact>(emission: T, dX: Vec3): T;
-  /** Has a signal emitted at `emission` crossed dX metres by the tick `now`? Exact. */
-  arrived(emission: Exact, now: Exact, dX: Vec3): boolean;
-  classify(dt: Exact, dX: Vec3): 'timelike' | 'null' | 'spacelike';
+  /** Light-travel time over dX, rounded up to whole ticks. */
+  lightTicks(dX: Displacement): string;
+  firstArrival<T extends Exact>(emission: T, dX: Displacement): T;
+  /** Has a signal emitted at `emission` crossed dX by the tick `now`? Exact. */
+  arrived(emission: Exact, now: Exact, dX: Displacement): boolean;
+  classify(dt: Exact, dX: Displacement): 'timelike' | 'null' | 'spacelike';
+}
+/** The choice of clock. Defaults: 384 bits, 1000 ticks to the second, 1 grid step to the metre. */
+export interface ClockOptions {
+  bits?: 384 | 512 | 768 | 1024;
+  /** A whole number from 1 to 1e12. */
+  ticksPerSecond?: number;
+  /** A whole number from 1 to 1e6. */
+  gridPerMetre?: number;
 }
 
 /** A flat universe of matter and a cosmological constant, seen from inside. Times in years since the Big Bang, lengths in
@@ -249,7 +272,9 @@ export interface SRKitApi {
   optics: OpticsApi;
   rocket: RocketApi;
   kepler(meanAnomaly: number, e: number): number;
-  time: ExactTime & { u384: ExactTime; u512: ExactTime };
+  /** Exact time. The object itself is the default clock (384 bits, milliseconds, metres); `u384` to `u1024` are the four
+   *  widths at that resolution; `clock()` makes any width with any tick and grid. */
+  time: ExactTime & { u384: ExactTime; u512: ExactTime; u768: ExactTime; u1024: ExactTime; clock(options?: ClockOptions): ExactTime };
   /** The Planck 2018 universe (srkit-flrw); `flrw.cosmology(h0PerYear, omegaM)` makes another. */
   flrw: Cosmology & { cosmology(h0PerYear?: number, omegaM?: number): Cosmology; fromKmSMpc(h0KmSMpc: number, omegaM: number): Cosmology };
   /** Closed-form general-relativity scalars (srkit-gr). */

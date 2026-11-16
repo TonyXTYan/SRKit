@@ -24,7 +24,7 @@
   'use strict';
   const EMBEDDED = '/*WASM_BASE64*/';
   const META = { version: '/*VERSION*/', sha256: '/*WASM_SHA256*/', bytes: /*WASM_BYTES*/0 };
-  const ABI = 4, SEG = 21, HEADER = 24, PIECE = 24;
+  const ABI = 5, SEG = 21, HEADER = 24, PIECE = 24;
   const KIND = { rest: 0, lin: 1, hyp: 2, circ: 3, null: 4, steer: 5, burn: 6 };
   const KIND_NAME = ['rest', 'lin', 'hyp', 'circ', 'null', 'steer', 'burn'];
   const PHASE_NAME = ['rest', 'boost', 'coast', 'brake', 'orbit', 'jump'];
@@ -46,7 +46,7 @@
     const x = new WebAssembly.Instance(new WebAssembly.Module(bytes), {}).exports, mem = x.memory;
     if (x.srkit_abi_version() !== ABI) throw new Error('SRKit: the WebAssembly module (ABI ' + x.srkit_abi_version() + ') does not match this loader (ABI ' + ABI + ')');
     let I, O, TX, calls = 0;
-    function views() { const b = mem.buffer; I = new Float64Array(b, x.srkit_in(), 64); O = new Float64Array(b, x.srkit_out(), 192); TX = [0, 1, 2].map(s => new Uint8Array(b, x.srkit_text(s), 256)); }
+    function views() { const b = mem.buffer; I = new Float64Array(b, x.srkit_in(), 64); O = new Float64Array(b, x.srkit_out(), 192); TX = [0, 1, 2, 3].map(s => new Uint8Array(b, x.srkit_text(s), 320)); }
     views();
     // when the module's memory grows, typed arrays over the old buffer are detached (their length reads 0)
     const live = () => { if (I.length === 0) views(); };
@@ -299,32 +299,55 @@
     };
     const kepler = (M, e) => { calls++; return x.kepler_eccentric_anomaly(M, e); };
 
-    // ---- exact time: whole milliseconds as decimal strings or BigInt, 384 or 512 bits wide ----
-    function exact(width) {
-      const f = (name) => x['time' + width + '_' + name];
-      const putText = (slot, v) => { const s = String(v); if (s.length > 256) throw new RangeError('SRKit: number too long'); live(); for (let i = 0; i < s.length; i++) TX[slot][i] = s.charCodeAt(i); return s.length; };
+    // ---- exact time: whole ticks as decimal strings or BigInt. A clock is a width (384, 512, 768 or 1024 bits), a
+    //      tick (ticksPerSecond) and a grid (gridPerMetre); the default is 384 bits, milliseconds and metres. ----
+    const WIDTHS = [384, 512, 768, 1024];
+    function exact(width, tps = 1000, gpm = 1) {
+      const putText = (slot, v) => { const s = String(v); if (s.length > 320) throw new RangeError('SRKit: number too long'); live(); for (let i = 0; i < s.length; i++) TX[slot][i] = s.charCodeAt(i); return s.length; };
       const takeText = (len, what) => { if (len < 0) throw new RangeError('SRKit: ' + what + (len === -3 ? ' is out of range' : ' has invalid input')); live(); let s = ''; for (let i = 0; i < len; i++) s += String.fromCharCode(TX[2][i]); return s; };
       const like = (ref, s) => typeof ref === 'bigint' ? BigInt(s) : s;
+      /* a displacement is three numbers of metres (rounded to the grid) or three BigInts or decimal strings of grid steps (exact) */
+      const disp = (dX, what) => {
+        const kinds = [dX[0], dX[1], dX[2]].map(v => typeof v === 'number' ? 0 : 1);
+        if (kinds[0] !== kinds[1] || kinds[0] !== kinds[2]) throw new TypeError('SRKit: ' + what + ' takes a displacement of three numbers (metres) or three BigInts (grid steps), not a mixture');
+        return kinds[0] === 0 ? [0, dX[0], dX[1], dX[2]] : [putText(3, dX[0] + ',' + dX[1] + ',' + dX[2]), 0, 0, 0];
+      };
+      const text = (op, what, la = 0, lb = 0, d = [0, 0, 0, 0]) => { calls++; return takeText(x.srkit_clock_text(op, width, tps, gpm, la, lb, d[0], d[1], d[2], d[3]), what); };
+      const num = (op, la = 0, lb = 0, d = [0, 0, 0, 0]) => { calls++; return x.srkit_clock_num(op, width, tps, gpm, la, lb, d[0], d[1], d[2], d[3]); };
+      const steps = num(5);
+      if (!WIDTHS.includes(width) || steps !== steps) throw new RangeError('SRKit: time.clock takes bits of 384, 512, 768 or 1024, ticksPerSecond a whole number from 1 to 1e12 and gridPerMetre a whole number from 1 to 1e6');
       return {
-        bits: width,
-        /* add(t, d): timestamp plus signed duration, both in ms */
-        add: (t, d) => { calls++; return like(t, takeText(f('add')(putText(0, t), putText(1, d)), 'time.add')); },
-        /* diff(a, b): a - b as a signed duration in ms */
-        diff: (a, b) => { calls++; return like(a, takeText(f('diff')(putText(0, a), putText(1, b)), 'time.diff')); },
-        cmp: (a, b) => { calls++; const r = f('cmp')(putText(0, a), putText(1, b)); if (r === -2) throw new RangeError('SRKit: time.cmp has invalid input'); return r; },
-        /* mod(t, periodMs): the exact phase of t in a period of whole milliseconds */
-        mod: (t, periodMs) => { calls++; return nn(f('mod')(putText(0, t), periodMs)); },
-        /* seconds(a, b): a - b in seconds, subtracted exactly first; null beyond 2^53 ms */
-        seconds: (a, b) => { calls++; return nn(f('seconds')(putText(0, a), putText(1, b))); },
-        /* lightTicks(dX): light-travel time over dX metres, rounded up to whole ms */
-        lightTicks: (dX) => { calls++; return takeText(f('light_ticks')(dX[0], dX[1], dX[2]), 'time.lightTicks'); },
-        firstArrival: (emission, dX) => { calls++; return like(emission, takeText(f('first_arrival')(putText(0, emission), dX[0], dX[1], dX[2]), 'time.firstArrival')); },
-        /* arrived(emission, now, dX): has the signal crossed dX metres by tick now? exact */
-        arrived: (emission, now, dX) => { calls++; const r = f('arrived')(putText(0, emission), putText(1, now), dX[0], dX[1], dX[2]); if (r < 0) throw new RangeError('SRKit: time.arrived has invalid input'); return r === 1; },
+        bits: width, ticksPerSecond: tps, gridPerMetre: gpm,
+        /* grid steps light covers in one tick: keep it in the hundreds or more, or rounding a position to the grid moves an arrival by whole ticks */
+        lightStepsPerTick: steps,
+        /* log10 of the longest time the clock holds, in years; and that time in ticks */
+        reachLog10Years: num(4), max: text(5, 'time.max'),
+        /* add(t, d): time plus signed duration, both in ticks */
+        add: (t, d) => like(t, text(0, 'time.add', putText(0, t), putText(1, d))),
+        /* diff(a, b): a - b as a signed duration in ticks */
+        diff: (a, b) => like(a, text(1, 'time.diff', putText(0, a), putText(1, b))),
+        cmp: (a, b) => { const r = num(0, putText(0, a), putText(1, b)); if (r !== r) throw new RangeError('SRKit: time.cmp has invalid input'); return r; },
+        /* mod(t, period): the exact phase of t in a period of whole ticks; a number, or a BigInt if the period is one. null if invalid */
+        mod: (t, period) => {
+          const big = typeof period === 'bigint';
+          if (!big && !(Number.isSafeInteger(period) && period >= 1)) return null;
+          calls++; const len = x.srkit_clock_text(2, width, tps, gpm, putText(0, t), putText(1, period), 0, 0, 0, 0);
+          if (len < 0) return null;
+          const r = takeText(len, 'time.mod'); return big ? BigInt(r) : Number(r);
+        },
+        /* seconds(a, b): a - b in seconds, subtracted exactly first; null beyond 2^53 ticks */
+        seconds: (a, b) => nn(num(1, putText(0, a), putText(1, b))),
+        /* lightTicks(dX): light-travel time over dX, rounded up to whole ticks */
+        lightTicks: (dX) => text(3, 'time.lightTicks', 0, 0, disp(dX, 'time.lightTicks')),
+        firstArrival: (emission, dX) => like(emission, text(4, 'time.firstArrival', putText(0, emission), 0, disp(dX, 'time.firstArrival'))),
+        /* arrived(emission, now, dX): has the signal crossed dX by tick now? exact */
+        arrived: (emission, now, dX) => { const r = num(2, putText(0, emission), putText(1, now), disp(dX, 'time.arrived')); if (r !== r) throw new RangeError('SRKit: time.arrived has invalid input'); return r === 1; },
         /* classify(dt, dX): 'timelike' | 'null' | 'spacelike', exact */
-        classify: (dt, dX) => { calls++; const r = f('classify')(putText(0, dt), dX[0], dX[1], dX[2]); if (r === -2) throw new RangeError('SRKit: time.classify has invalid input'); return r === 1 ? 'timelike' : r === 0 ? 'null' : 'spacelike'; },
+        classify: (dt, dX) => { const r = num(3, putText(0, dt), 0, disp(dX, 'time.classify')); if (r !== r) throw new RangeError('SRKit: time.classify has invalid input'); return r === 1 ? 'timelike' : r === 0 ? 'null' : 'spacelike'; },
       };
     }
+    /* time.clock({ bits, ticksPerSecond, gridPerMetre }): any width with any tick and grid */
+    const clock = ({ bits = 384, ticksPerSecond = 1000, gridPerMetre = 1 } = {}) => Object.freeze(exact(bits, ticksPerSecond, gridPerMetre));
     const U = (i) => x.unit_constant(i);
     const units = Object.freeze({ C: U(0), YEAR: U(1), LY: U(2), AU: U(3), PC: U(4), G0: U(5), H: U(6), HBAR: U(7), KB: U(8), G: U(9), SIGMA: U(10), L_SUN: U(11), R_SUN: U(12), GM_SUN: U(13),
       G_PER_YEAR: U(14), AU_LY: U(15), PC_LY: U(16) });
@@ -372,7 +395,7 @@
     return Object.freeze({
       info: Object.freeze({ backend: 'srkit-wasm', version: META.version, abi: ABI, sha256: META.sha256, bytes: META.bytes || bytes.length }),
       calls: () => calls, units, seg, wl, Worldline, plan, trip, orbit, optics, rocket, kepler,
-      time: Object.freeze(Object.assign(exact(384), { u384: exact(384), u512: exact(512) })),
+      time: Object.freeze(Object.assign(exact(384), { u384: clock({ bits: 384 }), u512: clock({ bits: 512 }), u768: clock({ bits: 768 }), u1024: clock({ bits: 1024 }), clock })),
       flrw, gr,
       raw: x, create,
     });

@@ -1,14 +1,19 @@
-//! Exact millisecond timestamps and signed differences.
+//! Exact timestamps and signed differences: whole ticks in a fixed-width unsigned integer.
 //!
-//! Epochs are never converted to floating point. Subtract epochs first, then
-//! use [`Timestamp::local_seconds_since`] only within its documented local
-//! range. Both widths remain available while the project's width comparison
-//! is open. Decimal text is the lossless interchange format.
+//! A timestamp counts ticks and does not know how long a tick is. The width is the type's limb count
+//! ([`Time384`], [`Time512`], [`Time768`], [`Time1024`]); the tick's length belongs to a
+//! [`crate::causal::Resolution`], and [`crate::causal::Clock`] holds a width and a resolution together. Methods
+//! with `millis` in their name, and those without `_at`, read a tick as a millisecond, the default; the `_at`
+//! methods take a resolution.
+//!
+//! Epochs are never converted to floating point. Subtract epochs first, then use
+//! [`Timestamp::local_seconds_since`] only within its documented local range. Decimal text is the lossless
+//! interchange format.
 
 use bnum::BUint;
 use core::{fmt, str::FromStr};
 
-use crate::Error;
+use crate::{causal::Resolution, Error};
 
 /// Largest integer millisecond difference accepted by the local float API.
 pub const MAX_LOCAL_MILLIS: u64 = 1_u64 << 53;
@@ -30,8 +35,12 @@ pub type Time512 = Timestamp<8>;
 pub type Duration384 = Duration<6>;
 /// Signed duration with a U512 magnitude.
 pub type Duration512 = Duration<8>;
-/// A 1,024-bit timestamp, for trials of a finer tick (R71.4). At one nanosecond a tick it reaches 5.7e291 years;
-/// 512 bits at a nanosecond reach 4.2e137 years, and 384 bits fall just short of 1e100 years.
+/// A 768-bit timestamp. At one nanosecond a tick it reaches 4.9e214 years; at a picosecond, 4.9e211.
+pub type Time768 = Timestamp<12>;
+/// Signed duration with a U768 magnitude.
+pub type Duration768 = Duration<12>;
+/// A 1,024-bit timestamp (R71.4). At one nanosecond a tick it reaches 5.7e291 years; 512 bits at a nanosecond
+/// reach 4.2e137 years, and 384 bits fall just short of 1e100 years.
 pub type Time1024 = Timestamp<16>;
 /// Signed duration with a U1024 magnitude.
 pub type Duration1024 = Duration<16>;
@@ -82,6 +91,16 @@ impl<const N: usize> Timestamp<N> {
 
     /// Access the exact full-width count without conversion to floating point.
     pub const fn raw_millis(self) -> BUint<N> {
+        self.millis
+    }
+
+    /// Construct from a full-width count of ticks, whatever their length.
+    pub const fn from_raw_ticks(ticks: BUint<N>) -> Self {
+        Self { millis: ticks }
+    }
+
+    /// The exact full-width count of ticks.
+    pub const fn raw_ticks(self) -> BUint<N> {
         self.millis
     }
 
@@ -142,6 +161,26 @@ impl<const N: usize> Timestamp<N> {
         }
         let phase = self.millis % BUint::<N>::from_digit(period_millis);
         Ok(phase.digits()[0])
+    }
+
+    /// Exact integer phase in a positive period of whole ticks, even at huge epochs.
+    pub fn modulo_ticks(self, period_ticks: u64) -> Result<u64, Error> {
+        self.modulo_millis(period_ticks)
+    }
+
+    /// As [`Timestamp::local_seconds_since`], for ticks of the length `res` gives. Differences beyond ±2^53
+    /// ticks return `PrecisionLoss`.
+    pub fn local_seconds_since_at(self, res: Resolution, origin: Self) -> Result<f64, Error> {
+        self.signed_duration_since(origin).local_seconds_at(res)
+    }
+
+    /// The exact phase in a period of whole ticks, in seconds, for ticks of the length `res` gives.
+    pub fn phase_seconds_at(self, res: Resolution, period_ticks: u64) -> Result<f64, Error> {
+        let phase = self.modulo_ticks(period_ticks)?;
+        if phase > MAX_LOCAL_MILLIS {
+            return Err(Error::PrecisionLoss);
+        }
+        Ok(phase as f64 / res.ticks_per_second() as f64)
     }
 
     /// Convert the exact modular phase to local seconds, after reduction.
@@ -250,6 +289,26 @@ impl<const N: usize> Duration<N> {
     /// The exact unsigned magnitude in milliseconds.
     pub const fn magnitude_millis(self) -> BUint<N> {
         self.magnitude
+    }
+
+    /// The exact unsigned magnitude in ticks, whatever their length.
+    pub const fn magnitude_ticks(self) -> BUint<N> {
+        self.magnitude
+    }
+
+    /// Construct a signed duration from a 64-bit count of ticks.
+    pub fn from_ticks(ticks: i64) -> Self {
+        Self::from_millis(ticks)
+    }
+
+    /// Local seconds for ticks of the length `res` gives. Magnitudes beyond 2^53 ticks return `PrecisionLoss`;
+    /// below that the count is exact before the one division.
+    pub fn local_seconds_at(self, res: Resolution) -> Result<f64, Error> {
+        if self.magnitude > BUint::<N>::from_digit(MAX_LOCAL_MILLIS) {
+            return Err(Error::PrecisionLoss);
+        }
+        let seconds = self.magnitude.digits()[0] as f64 / res.ticks_per_second() as f64;
+        Ok(if self.negative { -seconds } else { seconds })
     }
 
     /// Negation cannot overflow a sign-and-magnitude duration.

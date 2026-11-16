@@ -118,3 +118,32 @@ DT-35,deep-time §1,bits to 1e100 yr at minute (ceil),352,,0.01
 DT-36,deep-time §1,bits to 1e100 yr at 1 s (ceil),358,,0.01
 DT-37,deep-time §1,bits to 1e100 yr at 1 us (ceil),378,,0.01
 DT-38,arena brainstorm §3.1,u64 ms range,5.85e8,yr,0.01
+SR-74,navigation,"c^2/a at 1 g (passenger-time distance turns from square-root to log)",0.969,ly,0.01
+SR-75,navigation,"1 g: passenger years added per x10 distance, (2c/a) ln 10",4.46,yr,0.01
+SR-76,navigation,"1 g flip-and-burn Proxima: tau",3.54,yr,0.01
+SR-77,navigation,"1 g flip-and-burn Proxima: t",5.87,yr,0.01
+SR-78,navigation,"1 g flip-and-burn 26,000 ly (galactic centre): tau",19.76,yr,0.01
+SR-79,navigation,"1 g flip-and-burn 2.5 Mly (Andromeda, flat space): tau",28.6,yr,0.01
+SR-103,navigation,"10 g flip-and-burn 1e5 ly: tau",2.68,yr,0.01
+SR-104,navigation,"100 g flip-and-burn 1e5 ly: tau",0.313,yr,0.01
+SR-105,navigation,"1 g isochrone: distance reached in 10 yr passenger time",167,ly,0.01
+SR-106,navigation,"1 g 1e5 ly: t - d/c = home time seen on arrival = order window",1.937,yr,0.01
+SR-107,navigation,"1 g photon rocket: mass e-folds per passenger year, a/c",1.032,1/yr,0.01
+SR-108,navigation,"1 g: share of a leg's feed history within 3 ship-yr of its fast end",0.955,,0.01
+SR-109,navigation,"1 g 1e5 ly: peak destination playback rate e^phi",1.032e5,,0.01
+SR-110,navigation,"1 g 1e5 ly at peak gamma: apparent angle of a star at 90 deg",4.00,arcsec,0.01
+SR-88,navigation,"1 g 1e5 ly at peak gamma: CMB temperature dead ahead",2.81e5,K,0.01
+SR-89,navigation,"lead: 1e5 ly target at 220 km/s over light age + 1 g trip",147,ly,0.01
+SR-90,navigation,"lead: Proxima at 30 km/s over light age + 1 g trip",64.0,AU,0.01
+SR-91,navigation,"1 g 1e5 ly, cruise gamma capped at 1e4: tau",27.25,yr,0.01
+SR-92,navigation,"1 g 1e5 ly, cruise gamma capped at 1e4: photon-rocket mass ratio",4.0e8,,0.01
+SR-93,navigation,"1 g 1e5 ly with one stop at the midpoint: tau",42.05,yr,0.01
+SR-94,navigation,"100 ly loop at 1 g: apparent angle of the loop centre from the bow",5.62,deg,0.01
+SR-95,navigation,"100 ly loop at 1 g: Thomas precession of a gyro-held view, turns per lap",9.2,,0.01
+SR-96,navigation,"1 g 1e5 ly at the flip: ship-frame light age of the destination 50,000 ly ahead",5.16e9,yr,0.01
+SR-97,navigation,"1 g 1e5 ly at the flip: ship-frame light age of home 50,000 ly behind",0.484,yr,0.01
+SR-98,navigation,"0.1 g flip-and-burn 1e5 ly: tau",179.0,yr,0.01
+SR-99,navigation,"0.01 g flip-and-burn 1e5 ly: tau",1344,yr,0.01
+SR-100,navigation,"1 g 1e5 ly at the flip: radar distance of home's event seen now",5.26,ly,0.01
+SR-101,navigation,"1 g 1e5 ly at the flip: 1 - beta, the speed's shortfall from c at the launch site",1.88e-10,,0.01
+SR-102,navigation,"1 g ride to Westerlund 1 (13,400 ly) at the flip: light age of Westerlund 1 in the ship's momentary rest frame",9.27e7,yr,0.01

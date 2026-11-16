@@ -13,8 +13,11 @@
 //! computational geometry: compute where things are in floating point, round the endpoints to the grid, then
 //! decide exactly.
 //!
-//! The grid is one metre and the tick one millisecond, in which light covers about 300 km: rounding a position
-//! to the grid moves an arrival by at most one part in 300,000 of a tick.
+//! By default the grid is one metre and the tick one millisecond, in which light covers about 300 km: rounding
+//! a position to the grid moves an arrival by at most one part in 300,000 of a tick. Neither is fixed. A
+//! [`Resolution`] names any tick and any grid spacing, the `_at` functions take one, and a [`Clock`] holds a
+//! resolution together with a width (384, 512, 768 or 1,024 bits), so that an application chooses all three once
+//! and calls the same methods whatever it chose.
 
 use bnum::BUint;
 
@@ -52,6 +55,30 @@ impl GridVec {
             }
         };
         Ok(Self::new(conv(x)?, conv(y)?, conv(z)?))
+    }
+    /// Round a floating-point displacement in metres to the grid of `res` (to nearest, ties away from zero).
+    /// A float holds 53 bits: beyond 9e15 grid steps it no longer names a single step, so far positions should
+    /// be kept as integers and built with [`GridVec::new`] or [`GridVec::from_decimal`].
+    pub fn from_metres_at(res: Resolution, x: f64, y: f64, z: f64) -> Result<Self, Error> {
+        let g = res.grid_per_metre as f64;
+        Self::from_metres(x * g, y * g, z * g)
+    }
+    /// Parse three signed decimal integers of grid steps, separated by commas: `"40175000000000000,-3,77"`.
+    pub fn from_decimal(text: &str) -> Result<Self, Error> {
+        let mut parts = text.split(',');
+        let mut next = || -> Result<i128, Error> {
+            let part = parts.next().ok_or(Error::InvalidInput)?;
+            let digits = part.strip_prefix('-').unwrap_or(part);
+            if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+                return Err(Error::InvalidInput);
+            }
+            part.parse::<i128>().map_err(|_| Error::Overflow)
+        };
+        let v = Self::new(next()?, next()?, next()?);
+        if parts.next().is_some() {
+            return Err(Error::InvalidInput);
+        }
+        Ok(v)
     }
     /// The displacement from `self` to `other`.
     pub fn to(self, other: Self) -> Result<Self, Error> {
@@ -196,6 +223,14 @@ impl Resolution {
     }
     pub const fn grid_per_metre(self) -> u64 {
         self.grid_per_metre
+    }
+    /// The length of one tick in seconds.
+    pub fn tick_seconds(self) -> f64 {
+        1.0 / self.ticks_per_second as f64
+    }
+    /// The length of one grid step in metres.
+    pub fn grid_metres(self) -> f64 {
+        1.0 / self.grid_per_metre as f64
     }
     /// How many grid steps light covers in one tick. Rounding a position to the grid moves an arrival by up to
     /// one part in this many of a tick, so it should be large (hundreds or more).
@@ -354,4 +389,121 @@ where
         }
     }
     Err(Error::PrecisionLoss)
+}
+
+/// A stored clock: a width and a resolution, chosen together.
+///
+/// `N` is the number of 64-bit limbs, so the width is `64 N` bits: [`Clock384`], [`Clock512`], [`Clock768`] and
+/// [`Clock1024`] name the four that are tested and benchmarked. The resolution is any tick from a second to a
+/// picosecond on any grid from a metre to a micrometre ([`Resolution::new`]). Every method is the exact check of
+/// this module at that width and resolution, so an application picks one clock, keeps it in a constant and is
+/// done:
+///
+/// ```
+/// use srkit_core::causal::{Clock, Clock768, GridVec, Resolution};
+/// use srkit_core::time::Time768;
+///
+/// const CLOCK: Clock768 = Clock::new(Resolution::NANOSECOND_MILLIMETRE);
+/// let sent = Time768::from_decimal("3000000000000000000000000000000000000000").unwrap();
+/// let away = GridVec::new(299_792_458_000, 0, 0); // one light-second, in millimetres
+/// let heard = CLOCK.first_arrival(sent, away).unwrap();
+/// assert_eq!(heard.duration_since(sent).unwrap().to_string(), "1000000000"); // a second of nanoseconds
+/// assert!(CLOCK.arrived(sent, heard, away));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Clock<const N: usize> {
+    resolution: Resolution,
+}
+
+/// A 384-bit clock.
+pub type Clock384 = Clock<6>;
+/// A 512-bit clock.
+pub type Clock512 = Clock<8>;
+/// A 768-bit clock.
+pub type Clock768 = Clock<12>;
+/// A 1,024-bit clock.
+pub type Clock1024 = Clock<16>;
+
+impl<const N: usize> Clock<N> {
+    /// The width in bits.
+    pub const BITS: u32 = 64 * N as u32;
+
+    /// A clock of this width at `resolution`.
+    pub const fn new(resolution: Resolution) -> Self {
+        Self { resolution }
+    }
+    /// Milliseconds on a metre grid, the default.
+    pub const fn millisecond_metre() -> Self {
+        Self::new(Resolution::MILLISECOND_METRE)
+    }
+    pub const fn resolution(self) -> Resolution {
+        self.resolution
+    }
+    /// The width in bits.
+    pub const fn bits(self) -> u32 {
+        Self::BITS
+    }
+    /// The base-10 logarithm of the longest time the clock can hold, in Julian years: 100 means 10¹⁰⁰ years.
+    pub fn reach_log10_years(self) -> f64 {
+        const LOG10_2: f64 = core::f64::consts::LOG10_2;
+        Self::BITS as f64 * LOG10_2
+            - libm::log10(self.resolution.ticks_per_second as f64)
+            - libm::log10(31_557_600.0)
+    }
+    /// A displacement in metres rounded to this clock's grid (see [`GridVec::from_metres_at`]).
+    pub fn grid(self, x: f64, y: f64, z: f64) -> Result<GridVec, Error> {
+        GridVec::from_metres_at(self.resolution, x, y, z)
+    }
+    /// A whole number of seconds as a duration of this clock's ticks.
+    pub fn seconds(self, seconds: u64) -> Result<Duration<N>, Error> {
+        BUint::<N>::from_digit(seconds)
+            .checked_mul(BUint::from_digit(self.resolution.ticks_per_second))
+            .map(|ticks| Duration::from_parts(false, ticks))
+            .ok_or(Error::Overflow)
+    }
+    /// A duration in seconds; `PrecisionLoss` beyond 2^53 ticks.
+    pub fn local_seconds(self, duration: Duration<N>) -> Result<f64, Error> {
+        duration.local_seconds_at(self.resolution)
+    }
+    /// `later - earlier` in seconds, subtracted exactly first; `PrecisionLoss` beyond 2^53 ticks.
+    pub fn local_seconds_between(
+        self,
+        later: Timestamp<N>,
+        earlier: Timestamp<N>,
+    ) -> Result<f64, Error> {
+        later.local_seconds_since_at(self.resolution, earlier)
+    }
+    /// The exact phase of `t` in a period of whole ticks, in seconds.
+    pub fn phase_seconds(self, t: Timestamp<N>, period_ticks: u64) -> Result<f64, Error> {
+        t.phase_seconds_at(self.resolution, period_ticks)
+    }
+    /// See [`classify_at`].
+    pub fn classify(self, dt: Duration<N>, dx: GridVec) -> Causal {
+        classify_at(self.resolution, dt, dx)
+    }
+    /// See [`arrived_at`].
+    pub fn arrived(self, emission: Timestamp<N>, now: Timestamp<N>, dx: GridVec) -> bool {
+        arrived_at(self.resolution, emission, now, dx)
+    }
+    /// See [`light_ticks_at`].
+    pub fn light_ticks(self, dx: GridVec) -> Result<Duration<N>, Error> {
+        light_ticks_at(self.resolution, dx)
+    }
+    /// See [`first_arrival_at`].
+    pub fn first_arrival(self, emission: Timestamp<N>, dx: GridVec) -> Result<Timestamp<N>, Error> {
+        first_arrival_at(self.resolution, emission, dx)
+    }
+    /// See [`settle_arrival_at`].
+    pub fn settle_arrival<F>(
+        self,
+        emission: Timestamp<N>,
+        estimate: Timestamp<N>,
+        guard: u32,
+        displacement_at: F,
+    ) -> Result<Timestamp<N>, Error>
+    where
+        F: FnMut(Timestamp<N>) -> Result<GridVec, Error>,
+    {
+        settle_arrival_at(self.resolution, emission, estimate, guard, displacement_at)
+    }
 }
