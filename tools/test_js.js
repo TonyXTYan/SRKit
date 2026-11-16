@@ -197,6 +197,8 @@ function finish() {
   ok(ns768.seconds(10n ** 150n + 90n * 10n ** 9n, 10n ** 150n) === 90 && ns768.seconds('0', '1500000000') === -1.5 && ns768.seconds(2n ** 60n, 0n) === null, 'seconds at a nanosecond tick');
   const yearNs = 31557600n * 10n ** 9n;   // 3.2e16 ticks: past 2^53, so the period is a BigInt
   ok(ns768.mod(10n ** 150n, yearNs) === 10n ** 150n % yearNs && ns768.mod(10n ** 150n, 1000) === 0 && ns768.mod('7', 5) === 2 && T.mod('7', 0) === null && T.mod('7', 2.5) === null && T.mod('7', 2 ** 60) === null, 'mod with a period past 2^53 as a BigInt');
+  const yearPs = 31557600n * 10n ** 12n;   // a year of picoseconds does not fit 64 bits
+  ok(ps.mod(far + 12345n, yearPs) === 12345n && ps.mod(far, 0n) === null && ps.mod(far, -5n) === null, 'mod with a period past 2^64');
   for (const bad of [{ bits: 256 }, { bits: 640 }, { ticksPerSecond: 0 }, { ticksPerSecond: 1e13 }, { ticksPerSecond: 1000.5 }, { gridPerMetre: 0 }, { gridPerMetre: 1e7 }, { ticksPerSecond: NaN }]) { assert.throws(() => T.clock(bad), RangeError); checks++; }
   ok(Object.isFrozen(ns768) && T.clock().bits === 384 && T.clock().ticksPerSecond === 1000, 'clock() with no options is the default clock');
 

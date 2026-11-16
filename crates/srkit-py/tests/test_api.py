@@ -236,7 +236,7 @@ def test_mypy_stubtest_agrees(tmp_path):
     pytest.importorskip("mypy")
     # PyO3 fills the reflected slots of `-` and `%` on the time types; they only return NotImplemented.
     allowlist = tmp_path / "allowlist.txt"
-    allowlist.write_text("srkit\\.Time(384|512)\\.__r(sub|mod)__\n", encoding="utf-8")
+    allowlist.write_text("srkit\\.Time(384|512|768|1024)\\.__r(sub|mod)__\n", encoding="utf-8")
     result = subprocess.run(
         [sys.executable, "-m", "mypy.stubtest", "srkit", "--allowlist", str(allowlist)],
         capture_output=True,
@@ -348,7 +348,7 @@ def test_the_readme_examples_run_and_print_what_it_says():
         if i + 1 < len(blocks) and blocks[i + 1][0] == "text":
             assert out.getvalue() == blocks[i + 1][1]
             compared += 1
-    assert ran == 3 and compared == 2
+    assert ran == 4 and compared == 3
 
 
 def test_the_readme_example_is_the_physics():

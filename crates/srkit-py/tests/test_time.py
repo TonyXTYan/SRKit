@@ -1,4 +1,7 @@
-"""Exact time: integer milliseconds to and from Python `int` without loss, and exact causal decisions."""
+"""Exact time: integer ticks to and from Python `int` without loss, and exact causal decisions.
+
+A tick is a millisecond here, the default. Other ticks and grids are in `test_clock.py`.
+"""
 
 from __future__ import annotations
 
@@ -8,10 +11,25 @@ import random
 import pytest
 
 import srkit
-from srkit import Duration384, Duration512, Time384, Time512, causal
+from srkit import (
+    Duration384,
+    Duration512,
+    Duration768,
+    Duration1024,
+    Time384,
+    Time512,
+    Time768,
+    Time1024,
+    causal,
+)
 
 C = 299_792_458  # metres per second, exactly
-PAIRS = [(Time384, Duration384, 384), (Time512, Duration512, 512)]
+PAIRS = [
+    (Time384, Duration384, 384),
+    (Time512, Duration512, 512),
+    (Time768, Duration768, 768),
+    (Time1024, Duration1024, 1024),
+]
 
 
 def interesting_ints(bits: int) -> list[int]:
@@ -287,10 +305,14 @@ def test_classification_is_exact_on_the_cone():
     assert causal.classify(1000, (C - 1, 0, 0)) == "timelike"
     assert causal.classify(1000, (C, 1, 0)) == "spacelike"
     assert causal.classify(999, one_second) == "spacelike" and causal.classify(1001, one_second) == "timelike"
-    # the sign of the interval does not matter; durations of either width are accepted
+    # the sign of the interval does not matter; durations of any width are accepted
     assert causal.classify(-1000, (0, 0, -C)) == "null"
     assert causal.classify(Duration384(-1000), one_second) == "null"
     assert causal.classify(Duration512(1000), one_second) == "null"
+    assert causal.classify(Duration768(1000), one_second) == "null"
+    assert causal.classify(Duration1024(-1000), one_second) == "null"
+    # a wait too long for an int (read at 512 bits) is still a duration of a wider class
+    assert causal.classify(Duration1024(2**1024 - 1), (2**127 - 1, -(2**127), 2**127 - 1)) == "timelike"
     assert causal.classify(Time384(10**100 + 1000) - Time384(10**100), one_second) == "null"
     assert causal.classify(0, (0, 0, 0)) == "null" and causal.classify(0, (1, 0, 0)) == "spacelike"
     # a wait far longer than any distance is timelike without overflowing

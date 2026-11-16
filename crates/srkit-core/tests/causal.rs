@@ -489,3 +489,24 @@ mod any_clock {
         }
     }
 }
+
+#[test]
+fn a_phase_in_a_period_wider_than_64_bits() {
+    use srkit_core::time::Time768;
+    // a Julian year of picoseconds is 3.2e19 ticks: past 2^64
+    let year = Time768::from_decimal("31557600000000000000")
+        .unwrap()
+        .raw_ticks();
+    let t = Time768::from_decimal(&format!("31557600{}12345", "0".repeat(207))).unwrap();
+    assert_eq!(t.modulo(year).unwrap().to_string(), "12345");
+    assert_eq!(
+        t.modulo(Time768::ZERO.raw_ticks()),
+        Err(srkit_core::Error::InvalidInput)
+    );
+    assert_eq!(
+        t.modulo(Time768::from_ticks(1000).raw_ticks())
+            .unwrap()
+            .to_string(),
+        t.modulo_ticks(1000).unwrap().to_string()
+    );
+}

@@ -15,13 +15,15 @@ use core::{fmt, str::FromStr};
 
 use crate::{causal::Resolution, Error};
 
-/// Largest integer millisecond difference accepted by the local float API.
+/// Largest difference in ticks that the local float API accepts: beyond 2^53 a float no longer holds every
+/// tick. That is 285,000 years of milliseconds and 104 days of nanoseconds.
 pub const MAX_LOCAL_MILLIS: u64 = 1_u64 << 53;
 
-/// Unsigned, fixed-width milliseconds since an application-defined epoch.
+/// Unsigned, fixed-width ticks since an application-defined epoch; a tick is a millisecond unless a
+/// [`Resolution`] says otherwise.
 ///
-/// `N` is the number of 64-bit limbs and must be positive. Use [`Time384`]
-/// or [`Time512`] unless deliberately testing another width.
+/// `N` is the number of 64-bit limbs and must be positive: [`Time384`], [`Time512`], [`Time768`] and
+/// [`Time1024`] are the widths that are tested and benchmarked.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Timestamp<const N: usize> {
     millis: BUint<N>,
@@ -45,7 +47,7 @@ pub type Time1024 = Timestamp<16>;
 /// Signed duration with a U1024 magnitude.
 pub type Duration1024 = Duration<16>;
 
-/// A signed millisecond difference, with a full-width unsigned magnitude.
+/// A signed difference in ticks, with a full-width unsigned magnitude.
 ///
 /// Negative zero is normalized to zero. Using sign and magnitude preserves
 /// the difference between any two timestamps of the same width.
@@ -70,14 +72,14 @@ impl<const N: usize> Timestamp<N> {
     /// Maximum representable epoch; additions remain checked.
     pub const MAX: Self = Self { millis: BUint::MAX };
 
-    /// Construct an exact timestamp from a 64-bit count of milliseconds.
     /// Construct from a 64-bit count of ticks. The type counts ticks and does not know their length: the
-    /// game's tick is a millisecond, which the `*_millis` and `local_seconds` methods assume, and
+    /// default tick is a millisecond, which the `*_millis` and `local_seconds` methods assume, and
     /// [`crate::causal::Resolution`] names other lengths for the exact causal checks.
     pub const fn from_ticks(ticks: u64) -> Self {
         Self::from_millis(ticks)
     }
 
+    /// Construct an exact timestamp from a 64-bit count of milliseconds.
     pub const fn from_millis(millis: u64) -> Self {
         Self {
             millis: BUint::from_digit(millis),
@@ -168,6 +170,15 @@ impl<const N: usize> Timestamp<N> {
         self.modulo_millis(period_ticks)
     }
 
+    /// Exact integer phase in a period of any length. A period of 64 bits is 584 million years of milliseconds
+    /// but seven months of picoseconds, so a fine tick needs this form for a period as long as a year.
+    pub fn modulo(self, period_ticks: BUint<N>) -> Result<BUint<N>, Error> {
+        if period_ticks == BUint::ZERO {
+            return Err(Error::InvalidInput);
+        }
+        Ok(self.millis % period_ticks)
+    }
+
     /// As [`Timestamp::local_seconds_since`], for ticks of the length `res` gives. Differences beyond ±2^53
     /// ticks return `PrecisionLoss`.
     pub fn local_seconds_since_at(self, res: Resolution, origin: Self) -> Result<f64, Error> {
@@ -251,12 +262,20 @@ impl<const N: usize> Duration<N> {
         Self::from_parts(millis < 0, BUint::from_digit(millis.unsigned_abs()))
     }
 
-    /// Construct a nonnegative duration from a 64-bit millisecond count.
     /// Construct a nonnegative duration from a 64-bit count of ticks (see [`Timestamp::from_ticks`]).
     pub const fn from_unsigned_ticks(ticks: u64) -> Self {
         Self::from_unsigned_millis(ticks)
     }
 
+    /// Construct a nonnegative duration from a full-width count of ticks.
+    pub const fn from_raw_ticks(ticks: BUint<N>) -> Self {
+        Self {
+            negative: false,
+            magnitude: ticks,
+        }
+    }
+
+    /// Construct a nonnegative duration from a 64-bit millisecond count.
     pub const fn from_unsigned_millis(millis: u64) -> Self {
         Self {
             negative: false,

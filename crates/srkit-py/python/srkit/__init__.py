@@ -6,8 +6,10 @@
   time; nothing is integrated step by step.
 * What an observer sees is a light-cone query. `Worldline.send` finds the moment on a worldline whose light
   reaches an observer, and `Worldline.recv` the moment light from somewhere reaches the worldline.
-* Stored time is an exact integer. `Time384` and `Time512` count whole milliseconds and convert to and from
-  Python `int` without loss; `srkit.causal` decides "has this signal arrived by tick n?" in integers.
+* Stored time is an exact integer. `Time384`, `Time512`, `Time768` and `Time1024` count whole ticks and convert
+  to and from Python `int` without loss; `srkit.causal` decides "has this signal arrived by tick n?" in
+  integers. A tick is a millisecond and the grid a metre by default; `srkit.causal.Clock` holds a width, a tick
+  and a grid spacing of the application's choosing.
 
 Units
 -----
@@ -22,15 +24,16 @@ list, a NumPy array) and tuples of floats are returned. An event is given as a t
 
 Contents
 --------
-Classes: `Segment`, `Worldline`, `Trip`, `FlipBurn`, `CircularOrbit`, `Time384`, `Time512`, `Duration384`,
-`Duration512`, and the small records they return (`TauState`, `Radar`, `RindlerHorizon`, `TripState`, `Leg`,
+Classes: `Segment`, `Worldline`, `Trip`, `FlipBurn`, `CircularOrbit`, the exact times `Time384`, `Time512`,
+`Time768` and `Time1024` with their durations `Duration384`, `Duration512`, `Duration768` and `Duration1024`,
+and the small records the others return (`TauState`, `Radar`, `RindlerHorizon`, `TripState`, `Leg`,
 `OrbitState`).
 
 Functions: `reach`, `flip_burn_tau`, `flip_burn_distance`.
 
 Modules: `units` (constants and conversion), `plan` (itineraries), `kinematics` (boosts, rapidity, Doppler,
 aberration), `optics` (what an observer sees; telescopes and beams), `rocket` (the rocket equation and sails),
-`kepler` (Kepler's equation), `causal` (exact causal decisions).
+`kepler` (Kepler's equation), `causal` (exact causal decisions, and `Clock`).
 
 Errors
 ------
@@ -50,6 +53,8 @@ from ._srkit import (
     CircularOrbit,
     Duration384,
     Duration512,
+    Duration768,
+    Duration1024,
     FlipBurn,
     Leg,
     NoIntersection,
@@ -61,6 +66,8 @@ from ._srkit import (
     TauState,
     Time384,
     Time512,
+    Time768,
+    Time1024,
     Trip,
     TripState,
     flip_burn_distance,
@@ -213,6 +220,8 @@ __all__ = [
     "CircularOrbit",
     "Duration384",
     "Duration512",
+    "Duration768",
+    "Duration1024",
     "FlipBurn",
     "Leg",
     "NoIntersection",
@@ -224,6 +233,8 @@ __all__ = [
     "TauState",
     "Time384",
     "Time512",
+    "Time768",
+    "Time1024",
     "Trip",
     "TripState",
     "Worldline",

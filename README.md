@@ -2,7 +2,7 @@
 
 Special relativity in 3+1 Minkowski spacetime from closed forms: piecewise-analytic worldlines, exact proper time, light-cone queries, an exact integer clock, flat ΛCDM seen from inside, and a small set of general-relativity scalars. Rust, with JavaScript (WebAssembly) and Python bindings.
 
-It is the engine for *The Special Relativity Game* and stands alone: nothing here depends on the game. The game's repository carries this one as a submodule. This repository also holds the [Relativistic Navigator](navigator/README.md), a single-page explorer of relativistic travel that runs on the engine.
+It is the engine for *The Special Relativity Game* and stands alone: nothing here depends on the game. The game's repository carries this one as a submodule. This repository also holds the [Relativistic Navigator](navigator/README.md), a single-page explorer of relativistic travel that runs on the engine, published at <https://tonyxtyan.github.io/SRKit/>.
 
 **Status: version 0.3.0, the first complete one with a free choice of clock.** MIT licence ([`LICENSE`](LICENSE)); the Navigator's star table has its own terms ([`navigator/STAR-DATA.md`](navigator/STAR-DATA.md)). Nothing is on crates.io, npm or PyPI yet: the published name is not settled, so every crate is `publish = false`. Code and text were written with [Claude Code](https://claude.com/claude-code); see Credits at the end.
 
@@ -111,7 +111,7 @@ clock.firstArrival(10n ** 150n, [299792458000n, 0n, 0n]) - 10n ** 150n;         
 
 ## How it is checked
 
-208 Rust tests (core 52, cosmology 41, gravity 50, event log 8, diagrams 54, binding 3), 1,088 checks of the JavaScript binding and 154 of the Python binding. What they are:
+209 Rust tests (core 53, cosmology 41, gravity 50, event log 8, diagrams 54, binding 3), 1,089 checks of the JavaScript binding and 258 of the Python binding. What they are:
 
 - **Golden vectors.** `tools/golden_core.py` computes 610 cases from their textbook formulas (or a quadrature, or a root found by mpmath) at 60 significant digits, sharing no code with the crate. `tests/golden.rs` holds each family to a stated relative tolerance. Measured worst errors: 1e-15 to 5e-15 for segments, rides, optics, boosts, burns and Kepler's equation; 1e-11 where the input is a velocity near c; 6e-12 for reach (its iteration stops at 1e-12 by design).
 - **Third parties.** The cosmology is cross-checked against astropy and the Kerr orbits against KerrGeoPy (agreement to 1e-9; `crates/srkit-gr/README.md`).

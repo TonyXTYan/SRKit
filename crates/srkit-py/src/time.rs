@@ -1,4 +1,9 @@
-//! `srkit.Time384`, `srkit.Time512` and their durations: exact integer milliseconds, to and from Python `int`.
+//! `srkit.Time384`, `Time512`, `Time768`, `Time1024` and their durations: exact integer ticks, to and from
+//! Python `int`.
+//!
+//! A time counts whole ticks and does not know how long a tick is. A tick is a millisecond by default, and the
+//! methods on these classes that give seconds read it so; `srkit.causal.Clock` (in `causal.rs`) holds a width
+//! together with a tick and a grid spacing, and reaches the classes through [`Width`].
 //!
 //! A Python `int` has no fixed width, so the conversion is lossless both ways: through `u64` when the value is
 //! small, through little-endian bytes otherwise. Nothing here goes through a float.
@@ -8,7 +13,7 @@ use pyo3::{
     basic::CompareOp,
     exceptions::{PyOverflowError, PyTypeError},
     prelude::*,
-    types::{PyBytes, PyInt},
+    types::{PyBytes, PyInt, PyType},
 };
 use srkit_core::time::{Duration, Timestamp};
 
@@ -44,7 +49,7 @@ pub(crate) fn as_int<'py>(obj: &Bound<'py, PyAny>) -> Option<Bound<'py, PyInt>> 
 fn int_from_py<'py>(obj: &Bound<'py, PyAny>, what: &str) -> PyResult<Bound<'py, PyInt>> {
     as_int(obj).ok_or_else(|| {
         PyTypeError::new_err(format!(
-            "{what} must be an int (exact milliseconds or metres, never a float), got {}",
+            "{what} must be an int (an exact count, never a float), got {}",
             type_name(obj)
         ))
     })
@@ -128,7 +133,7 @@ fn compare<const N: usize>(a: Duration<N>, b: Duration<N>) -> std::cmp::Ordering
 
 /// A constructor argument that may be left out. Unlike `Option`, an explicit `None` is not "left out": it is an
 /// object like any other, and is refused as not being an `int`.
-pub(crate) struct Given<'py>(Option<Bound<'py, PyAny>>);
+pub(crate) struct Given<'py>(pub(crate) Option<Bound<'py, PyAny>>);
 
 impl<'a, 'py> FromPyObject<'a, 'py> for Given<'py> {
     type Error = PyErr;
@@ -138,39 +143,69 @@ impl<'a, 'py> FromPyObject<'a, 'py> for Given<'py> {
     }
 }
 
-/// A period in whole milliseconds, for modular phase.
-fn period(period_ms: &Bound<'_, PyInt>) -> PyResult<u64> {
-    if period_ms.le(0)? {
-        return Err(invalid(
-            "the period must be a positive number of milliseconds",
-        ));
+/// A period in whole ticks, for modular phase.
+pub(crate) fn period(ticks: &Bound<'_, PyInt>) -> PyResult<u64> {
+    if ticks.le(0)? {
+        return Err(invalid("the period must be a positive number of ticks"));
     }
-    period_ms.extract::<u64>().map_err(|_| {
-        PyOverflowError::new_err("the period must be below 2**64 milliseconds (584 million years)")
-    })
+    ticks
+        .extract::<u64>()
+        .map_err(|_| PyOverflowError::new_err("the period must be below 2**64 ticks"))
+}
+
+/// One width of exact time: the Python classes that hold `Timestamp<N>` and `Duration<N>`.
+///
+/// Implemented by each time class, so that code generic over the width (`srkit.causal`) can read and build
+/// times and durations without naming the classes.
+pub(crate) trait Width<const N: usize> {
+    /// The Python name of the time class.
+    const TIME: &'static str;
+    /// The Python name of the duration class.
+    const DURATION: &'static str;
+    /// The time an object holds, if it is a time of this width.
+    fn time_from(obj: &Bound<'_, PyAny>) -> Option<Timestamp<N>>;
+    /// The duration an object holds, if it is a duration of this width.
+    fn duration_from(obj: &Bound<'_, PyAny>) -> Option<Duration<N>>;
+    /// A new time object of this width.
+    fn time_to(py: Python<'_>, value: Timestamp<N>) -> PyResult<Bound<'_, PyAny>>;
+    /// A new duration object of this width.
+    fn duration_to(py: Python<'_>, value: Duration<N>) -> PyResult<Bound<'_, PyAny>>;
+    /// The time class.
+    fn time_class(py: Python<'_>) -> Bound<'_, PyType>;
+    /// The duration class.
+    fn duration_class(py: Python<'_>) -> Bound<'_, PyType>;
 }
 
 macro_rules! exact_time {
     ($time:ident, $dur:ident, $n:literal, $tname:literal, $dname:literal) => {
-        /// An exact time: whole milliseconds since an epoch of the application's choosing, held as an unsigned
-        /// integer of fixed width (`BITS`, 384 or 512). It converts to and from a Python `int` without loss.
+        /// An exact time: whole ticks since an epoch of the application's choosing, held as an unsigned
+        /// integer of fixed width (`BITS`: 384, 512, 768 or 1024). It converts to and from a Python `int`
+        /// without loss.
+        ///
+        /// A time counts ticks and does not know how long a tick is. A tick is a millisecond by default: the
+        /// methods here that give seconds or take metres (`local_seconds_since`, `phase_seconds`,
+        /// `stationary_arrival`, `stationary_signal_arrived`) read it so. A `srkit.causal.Clock` gives ticks
+        /// another length and does the same work at that length.
         ///
         /// Epochs are never turned into floats. Subtract two times first (the difference is an exact
         /// duration), then ask for `local_seconds_since` when the difference is small enough to be a float.
         ///
-        /// Arithmetic: `time + d` and `time - d` take a duration or an `int` of milliseconds and give a time;
-        /// `time - time` gives a duration; `time % period_ms` is the exact phase in a period of whole
-        /// milliseconds. Times of one width compare and hash by value. A result before the epoch or past
-        /// `MAX` raises `OverflowError`.
+        /// Arithmetic: `time + d` and `time - d` take a duration or an `int` of ticks and give a time;
+        /// `time - time` gives a duration; `time % period` is the exact phase in a period of whole ticks.
+        /// Times of one width compare and hash by value, and times of different widths do not mix. A result
+        /// before the epoch or past `MAX` raises `OverflowError`.
         #[pyclass(frozen, module = "srkit", name = $tname)]
         #[derive(Clone, Copy)]
         pub struct $time {
             pub(crate) inner: Timestamp<$n>,
         }
 
-        /// An exact signed duration: whole milliseconds, with a magnitude as wide as the matching time type
-        /// (`BITS`, 384 or 512). It converts to and from a Python `int` without loss, and compares with
+        /// An exact signed duration: whole ticks, with a magnitude as wide as the matching time type (`BITS`:
+        /// 384, 512, 768 or 1024). It converts to and from a Python `int` without loss, and compares with
         /// durations of the same width and with `int`.
+        ///
+        /// A tick is a millisecond by default, which is how `local_seconds` and `light_travel_time` read it.
+        /// A `srkit.causal.Clock` gives ticks another length.
         #[pyclass(frozen, module = "srkit", name = $dname)]
         #[derive(Clone, Copy)]
         pub struct $dur {
@@ -178,7 +213,7 @@ macro_rules! exact_time {
         }
 
         impl $dur {
-            /// A duration argument: a duration of this width or an `int` of milliseconds.
+            /// A duration argument: a duration of this width or an `int` of ticks.
             fn arg(obj: &Bound<'_, PyAny>) -> PyResult<Option<Duration<$n>>> {
                 if let Ok(d) = obj.cast::<$dur>() {
                     Ok(Some(d.get().inner))
@@ -187,6 +222,29 @@ macro_rules! exact_time {
                 } else {
                     Ok(None)
                 }
+            }
+        }
+
+        impl Width<$n> for $time {
+            const TIME: &'static str = $tname;
+            const DURATION: &'static str = $dname;
+            fn time_from(obj: &Bound<'_, PyAny>) -> Option<Timestamp<$n>> {
+                obj.cast::<$time>().ok().map(|t| t.get().inner)
+            }
+            fn duration_from(obj: &Bound<'_, PyAny>) -> Option<Duration<$n>> {
+                obj.cast::<$dur>().ok().map(|d| d.get().inner)
+            }
+            fn time_to(py: Python<'_>, value: Timestamp<$n>) -> PyResult<Bound<'_, PyAny>> {
+                Ok(Bound::new(py, $time { inner: value })?.into_any())
+            }
+            fn duration_to(py: Python<'_>, value: Duration<$n>) -> PyResult<Bound<'_, PyAny>> {
+                Ok(Bound::new(py, $dur { inner: value })?.into_any())
+            }
+            fn time_class(py: Python<'_>) -> Bound<'_, PyType> {
+                py.get_type::<$time>()
+            }
+            fn duration_class(py: Python<'_>) -> Bound<'_, PyType> {
+                py.get_type::<$dur>()
             }
         }
 
@@ -209,7 +267,7 @@ macro_rules! exact_time {
             #[classattr]
             const BITS: u32 = $n * 64;
 
-            /// The epoch: zero milliseconds.
+            /// The epoch: zero ticks.
             #[classattr]
             #[pyo3(name = "ZERO")]
             fn zero() -> Self {
@@ -291,15 +349,17 @@ macro_rules! exact_time {
                 self.inner.modulo_millis(period(&period_ms)?).py()
             }
 
-            /// `self - origin` in seconds. The subtraction is exact; the result is a float.
+            /// `self - origin` in seconds, reading a tick as a millisecond. The subtraction is exact; the
+            /// result is a float. For ticks of another length use `Clock.local_seconds_between`.
             ///
-            /// Raises `srkit.PrecisionLoss` if the difference is beyond 2**53 milliseconds (285,000 years),
-            /// where a float can no longer hold every millisecond.
+            /// Raises `srkit.PrecisionLoss` if the difference is beyond 2**53 ticks (285,000 years of
+            /// milliseconds), where a float can no longer hold every tick.
             fn local_seconds_since(&self, origin: PyRef<'_, Self>) -> PyResult<f64> {
                 self.inner.local_seconds_since(origin.inner).py()
             }
-            /// The exact phase in a period of `period_ms` whole milliseconds, in seconds. The reduction is in
-            /// integers, so it is right even at huge epochs.
+            /// The exact phase in a period of `period_ms` whole ticks, in seconds, reading a tick as a
+            /// millisecond. The reduction is in integers, so it is right even at huge epochs. For ticks of
+            /// another length use `Clock.phase_seconds`.
             fn phase_seconds(&self, period_ms: Bound<'_, PyInt>) -> PyResult<f64> {
                 self.inner.phase_seconds(period(&period_ms)?).py()
             }
@@ -310,7 +370,8 @@ macro_rules! exact_time {
                 })
             }
             /// The first tick at which a signal emitted now has crossed `distance_m` whole metres to a fixed
-            /// point: the light-travel time rounded up to a whole millisecond. Exact.
+            /// point: the light-travel time rounded up to a whole tick, reading a tick as a millisecond.
+            /// Exact. For another tick or grid use `Clock.first_arrival`.
             fn stationary_arrival(&self, distance_m: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let distance = uint_from_py::<$n>(distance_m, "distance_m")?;
                 Ok(Self {
@@ -318,7 +379,8 @@ macro_rules! exact_time {
                 })
             }
             /// Whether this tick is late enough for a signal emitted at `emission` to have crossed
-            /// `distance_m` whole metres to a fixed point. Exact; false before the emission.
+            /// `distance_m` whole metres to a fixed point, reading a tick as a millisecond. Exact; false
+            /// before the emission. For another tick or grid use `Clock.arrived`.
             fn stationary_signal_arrived(
                 &self,
                 emission: PyRef<'_, Self>,
@@ -366,8 +428,8 @@ macro_rules! exact_time {
                     inner: Duration::from_decimal(text).py()?,
                 })
             }
-            /// The light-travel time across `distance_m` whole metres, rounded up to a whole millisecond.
-            /// Exact.
+            /// The light-travel time across `distance_m` whole metres, rounded up to a whole tick, reading a
+            /// tick as a millisecond. Exact. For another tick or grid use `Clock.light_ticks`.
             #[staticmethod]
             fn light_travel_time(distance_m: &Bound<'_, PyAny>) -> PyResult<Self> {
                 let distance = uint_from_py::<$n>(distance_m, "distance_m")?;
@@ -381,8 +443,9 @@ macro_rules! exact_time {
             fn is_negative(&self) -> bool {
                 self.inner.is_negative()
             }
-            /// The duration in seconds, as a float. Raises `srkit.PrecisionLoss` beyond 2**53 milliseconds
-            /// (285,000 years), where a float can no longer hold every millisecond.
+            /// The duration in seconds, as a float, reading a tick as a millisecond. Raises
+            /// `srkit.PrecisionLoss` beyond 2**53 ticks (285,000 years of milliseconds), where a float can
+            /// no longer hold every tick. For ticks of another length use `Clock.local_seconds`.
             fn local_seconds(&self) -> PyResult<f64> {
                 self.inner.local_seconds().py()
             }
@@ -484,3 +547,5 @@ macro_rules! exact_time {
 
 exact_time!(Time384, Duration384, 6, "Time384", "Duration384");
 exact_time!(Time512, Duration512, 8, "Time512", "Duration512");
+exact_time!(Time768, Duration768, 12, "Time768", "Duration768");
+exact_time!(Time1024, Duration1024, 16, "Time1024", "Duration1024");

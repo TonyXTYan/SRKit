@@ -12,19 +12,16 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  # Two jobs, as GitHub's own Pages workflows have: a deployment in the same job as the upload can ask for the
+  # artifact before it is listed, and fails with "No artifacts named github-pages were found".
+  build:
     runs-on: ubuntu-24.04
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Assemble the site
@@ -32,10 +29,20 @@ jobs:
           mkdir site
           cp navigator/relativistic-navigator.html site/index.html
           cp LICENSE navigator/STAR-DATA.md site/
-          touch site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4

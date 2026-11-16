@@ -9,8 +9,9 @@
 //! | [`worldline`] | `Worldline` (native base), `Radar` |
 //! | [`trip`] | `Trip`, `Leg`, `TripState`, `FlipBurn`, `reach`, `flip_burn_tau`, `flip_burn_distance` |
 //! | [`orbit`] | `CircularOrbit`, `OrbitState` |
-//! | [`time`] | `Time384`, `Time512`, `Duration384`, `Duration512` |
-//! | [`units`], [`plan`], [`causal`], [`functions`] | the submodules `srkit.units`, `srkit.plan`, `srkit.causal`, `srkit.kinematics`, `srkit.optics`, `srkit.rocket`, `srkit.kepler` |
+//! | [`time`] | `Time384`, `Time512`, `Time768`, `Time1024`, `Duration384`, `Duration512`, `Duration768`, `Duration1024` |
+//! | [`causal`] | the submodule `srkit.causal`: `Clock` and the exact checks at the default resolution |
+//! | [`units`], [`plan`], [`functions`] | the submodules `srkit.units`, `srkit.plan`, `srkit.kinematics`, `srkit.optics`, `srkit.rocket`, `srkit.kepler` |
 //!
 //! Numbers pass through unchanged: the bindings validate arguments but never normalise or round them, so a call
 //! gives the same bits as the same call on the Rust core.
@@ -46,8 +47,8 @@ pyo3::create_exception!(
     PrecisionLoss,
     pyo3::exceptions::PyArithmeticError,
     "The answer cannot be given to the precision the function promises.\n\n\
-     Raised when an exact difference of times is too large to be a float without losing milliseconds (beyond \
-     2**53 ms), when a Doppler factor underflows, and when `causal.settle_arrival` is given an estimate \
+     Raised when an exact difference of times is too large to be a float without losing ticks (beyond \
+     2**53 ticks), when a Doppler factor underflows, and when `causal.settle_arrival` is given an estimate \
      further off than its guard. A subclass of `ArithmeticError`, as `OverflowError` is."
 );
 
@@ -72,8 +73,12 @@ fn _srkit(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<orbit::OrbitState>()?;
     m.add_class::<time::Time384>()?;
     m.add_class::<time::Time512>()?;
+    m.add_class::<time::Time768>()?;
+    m.add_class::<time::Time1024>()?;
     m.add_class::<time::Duration384>()?;
     m.add_class::<time::Duration512>()?;
+    m.add_class::<time::Duration768>()?;
+    m.add_class::<time::Duration1024>()?;
     m.add_function(wrap_pyfunction!(trip::reach, m)?)?;
     m.add_function(wrap_pyfunction!(trip::flip_burn_tau, m)?)?;
     m.add_function(wrap_pyfunction!(trip::flip_burn_distance, m)?)?;

@@ -115,7 +115,7 @@ dependencies = [
 
 [[package]]
 name = "srkit-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bnum",
  "libm",
@@ -123,7 +123,7 @@ dependencies = [
 
 [[package]]
 name = "srkit-py"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bnum",
  "pyo3",

@@ -330,7 +330,7 @@
         /* mod(t, period): the exact phase of t in a period of whole ticks; a number, or a BigInt if the period is one. null if invalid */
         mod: (t, period) => {
           const big = typeof period === 'bigint';
-          if (!big && !(Number.isSafeInteger(period) && period >= 1)) return null;
+          if (big ? period < 1n : !(Number.isSafeInteger(period) && period >= 1)) return null;
           calls++; const len = x.srkit_clock_text(2, width, tps, gpm, putText(0, t), putText(1, period), 0, 0, 0, 0);
           if (len < 0) return null;
           const r = takeText(len, 'time.mod'); return big ? BigInt(r) : Number(r);

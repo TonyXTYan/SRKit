@@ -23,7 +23,7 @@ python -m pytest -q                  # the tests read ../../oracle/oracle.csv
 ```
 
 `maturin build --release --locked` writes a wheel to `target/wheels/` instead
-(`srkit-0.2.0-cp39-abi3-manylinux_2_34_x86_64.whl`, about 0.5 MB, on the Linux machine it was last built on; the
+(`srkit-0.3.0-cp39-abi3-manylinux_2_34_x86_64.whl`, about 0.5 MB, on the Linux machine it was last built on; the
 `manylinux` tag follows the build host's C library). It is an `abi3` wheel: one file serves CPython 3.9 and
 every later version.
 
@@ -67,9 +67,10 @@ it the first burn would describe a ship that had been braking in from infinity, 
 
 ## Example: an exact arrival a googol of milliseconds from the epoch
 
-Geometry is floating point, which is right for drawing and wrong for deciding. Stored times are whole
-milliseconds in 384 or 512 bits and convert to and from Python `int` without loss; `srkit.causal` decides
-arrivals in integer arithmetic.
+Geometry is floating point, which is right for drawing and wrong for deciding. Stored times are whole ticks in
+384, 512, 768 or 1024 bits (`Time384`, `Time512`, `Time768`, `Time1024`) and convert to and from Python `int`
+without loss; `srkit.causal` decides arrivals in integer arithmetic. A tick is a millisecond and the grid a
+metre unless you choose otherwise (next section).
 
 ```python
 from srkit import Time512, causal, units
@@ -88,6 +89,54 @@ assert causal.light_ticks((299_792_459, 0, 0)) == 1001           # and one metre
 134009348401
 ```
 
+## Example: choosing the width, the tick and the grid
+
+A time counts ticks and does not know how long a tick is. `causal.Clock(bits, ticks_per_second, grid_per_metre)`
+holds the three choices together: the width of the stored integer (384, 512, 768 or 1024 bits), the tick (from
+a second down to a picosecond) and the grid spacing (from a metre down to a micrometre). Its methods are the
+same exact checks at that resolution. Displacements are three ints of grid steps.
+
+```python
+from srkit import causal
+
+clock = causal.Clock(768, *causal.NANOSECOND_MILLIMETRE)     # 768 bits, nanosecond ticks, millimetre grid
+print(clock, f"reaches 10^{clock.reach_log10_years:.1f} years")
+sent = clock.time(3 * 10**39)                                # a Time768: 3e39 ns after the epoch
+away = clock.grid(299_792_458.0, 0.0, 0.0)                   # one light-second, in whole millimetres
+heard = clock.first_arrival(sent, away)                      # first tick at which the signal is there
+print(heard - sent)                                          # a second of nanoseconds, exactly
+assert clock.arrived(sent, heard, away) and not clock.arrived(sent, heard - 1, away)
+assert clock.classify(heard - sent, away) == "null"          # exactly on the light cone
+assert heard - sent == clock.seconds(1) and clock.local_seconds(heard - sent) == 1.0
+
+default = causal.Clock()                                     # 384 bits, millisecond ticks, metre grid
+assert default.first_arrival(default.time(0), (299_792_458, 0, 0)) == default.time(1000)
+```
+
+```text
+Clock(bits=768, ticks_per_second=1000000000, grid_per_metre=1000) reaches 10^214.7 years
+1000000000
+```
+
+The defaults are `Clock(384, 1000, 1)`: milliseconds on a metre grid. The module-level functions
+(`causal.first_arrival`, `causal.arrived`, ...) are that default at the width of the times they are given, so
+`causal.first_arrival(t, dx)` is `Clock(t.BITS).first_arrival(t, dx)`. `MILLISECOND_METRE`, `MICROSECOND_METRE`
+and `NANOSECOND_MILLIMETRE` are `(ticks_per_second, grid_per_metre)` pairs to unpack into `Clock`.
+
+Three things to know when choosing:
+
+- **The width and the tick set the reach.** `clock.reach_log10_years` is the longest time the clock holds, as
+  a power of ten in years: 105.1 for 384 bits of milliseconds, 99.1 for 384 bits of nanoseconds (just short of
+  a googol), 214.7 for 768 bits of nanoseconds.
+- **The grid must be much finer than the distance light covers in a tick**, or rounding a position to the grid
+  moves an arrival by whole ticks. `clock.light_steps_per_tick` should be in the hundreds or more: a
+  nanosecond tick wants a millimetre grid (300 steps), not a metre one (0.3).
+- **A time does not carry its clock.** `Time768(5)` is five ticks, whatever a tick is. Keep one clock per
+  application and use it for every call. The methods on the time classes that give seconds
+  (`local_seconds_since`, `phase_seconds`, `stationary_arrival`, ...) read a tick as a millisecond; for other
+  ticks use the clock's methods (`local_seconds_between`, `phase_seconds`, `first_arrival`, ...). Times of
+  different widths never mix: that is a `TypeError`.
+
 ## Units and conventions
 
 - **Natural units, c = 1.** Pick a unit of time and measure lengths in the distance light covers in it: years
@@ -100,8 +149,8 @@ assert causal.light_ticks((299_792_459, 0, 0)) == 1001           # and one metre
 - **Numbers pass through unchanged.** The bindings check arguments (a velocity below c, a unit vector where one
   is needed, no NaN) but never normalise or round them, so a call gives the same bits as the same call on the
   Rust core.
-- **Exact quantities are `int`.** Milliseconds and metres in `Time384`, `Time512`, the durations and
-  `srkit.causal` are Python ints; floats are refused there.
+- **Exact quantities are `int`.** Ticks and grid steps (milliseconds and metres by default) in the time
+  classes, the durations and `srkit.causal` are Python ints; floats are refused there.
 
 ## What is in the package
 
@@ -114,8 +163,9 @@ assert causal.light_ticks((299_792_459, 0, 0)) == 1001           # and one metre
 | `CircularOrbit` | A circle flown under thrust: period, clock rates, Sagnac gap, Thomas precession |
 | `kinematics`, `optics` | Boosts, rapidity, velocity composition, Doppler factors, aberration; what a moving observer sees; telescope and beam formulas |
 | `rocket`, `kepler` | The relativistic rocket equation and light sails; Kepler's equation |
-| `Time384`, `Time512`, `Duration384`, `Duration512` | Exact integer milliseconds: `+`, `-`, comparisons, `% period_ms`, `local_seconds_since` |
-| `causal` | Exact causal decisions: `light_ticks`, `first_arrival`, `arrived`, `classify`, `settle_arrival`, `grid_from_metres` |
+| `Time384`, `Time512`, `Time768`, `Time1024` and `Duration384`, `Duration512`, `Duration768`, `Duration1024` | Exact integer ticks, a millisecond each by default: `+`, `-`, comparisons, `% period`, `local_seconds_since` |
+| `causal` | Exact causal decisions with millisecond ticks on a metre grid: `light_ticks`, `first_arrival`, `arrived`, `classify`, `settle_arrival`, `grid_from_metres` |
+| `causal.Clock` | A width, a tick and a grid spacing: `time`, `duration`, `seconds`, `grid`, the same decisions at that resolution, `local_seconds`, `local_seconds_between`, `phase_seconds`, `reach_log10_years` |
 | `units` | Exact SI constants and `Units` |
 
 Every public name has a docstring (`help(srkit)`), and the package ships type stubs (`py.typed`).
@@ -154,11 +204,11 @@ flat lists of floats otherwise (`at_many` then gives three floats per time).
 
 | Raised | When |
 |---|---|
-| `ValueError` | Invalid or out-of-range input: a speed at or above c, a direction that is not a unit vector, a NaN, a run too short for the change of speed asked for, segments that do not join (`check_continuity`) |
+| `ValueError` | Invalid or out-of-range input: a speed at or above c, a direction that is not a unit vector, a NaN, a run too short for the change of speed asked for, segments that do not join (`check_continuity`), a clock width or resolution that is not offered |
 | `OverflowError` | A result too large for its representation: a time past `Time384.MAX`, a displacement beyond the signed 128-bit grid |
 | `srkit.NoIntersection` | A light cone does not meet a segment within the range given, or a worldline at all (`seen_from`) |
-| `srkit.PrecisionLoss` | The answer cannot be given to the promised precision: an exact time difference beyond 2^53 ms asked for as a float. A subclass of `ArithmeticError` |
-| `TypeError` | The wrong kind of argument: a float where an exact `int` is needed, times of two different widths |
+| `srkit.PrecisionLoss` | The answer cannot be given to the promised precision: an exact time difference beyond 2^53 ticks asked for as a float. A subclass of `ArithmeticError` |
+| `TypeError` | The wrong kind of argument: a float where an exact `int` is needed, times of two different widths, a time that is not of a clock's width |
 
 ## Tests
 
@@ -170,8 +220,11 @@ flat lists of floats otherwise (`at_many` then gives three floats per time).
 - identities through the bindings: proper time inverts coordinate time, light-cone roots lie on the cone,
   worldline queries agree with segment queries, vectorised methods equal the scalar ones bit for bit, with and
   without NumPy;
-- exact time: Python ints round-trip at both widths, ordering, modular phase at huge epochs, `arrived` flips
-  exactly at `first_arrival`;
+- exact time: Python ints round-trip at all four widths, ordering, modular phase at huge epochs, `arrived`
+  flips exactly at `first_arrival`;
+- clocks: one light-second is exactly one second of ticks at seven resolutions and four widths, the widths
+  agree with each other and with Python's own integers, and the module-level functions equal the default
+  clock;
 - error mapping, and that the type stubs list exactly the names, members and signatures the module has
   (with `mypy.stubtest` as a second opinion where mypy is installed);
 - the examples in this file, including what they print.

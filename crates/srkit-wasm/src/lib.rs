@@ -1200,12 +1200,10 @@ impl ClockCall {
                 .time::<N>(0)?
                 .signed_duration_since(self.time(1)?)
                 .to_string(),
-            2 => {
-                let period = text(1, self.len_b)
-                    .and_then(|p| p.parse::<u64>().ok())
-                    .ok_or(Error::InvalidInput)?;
-                self.time::<N>(0)?.modulo_ticks(period)?.to_string()
-            }
+            2 => self
+                .time::<N>(0)?
+                .modulo(self.time::<N>(1)?.raw_ticks())?
+                .to_string(),
             3 => clock.light_ticks(self.dx()?)?.to_string(),
             4 => clock.first_arrival(self.time(0)?, self.dx()?)?.to_string(),
             5 => Timestamp::<N>::MAX.to_string(),

@@ -2,7 +2,7 @@
 
 A single web page for exploring relativistic travel: plan a ride at constant proper acceleration to a real star, the Galactic centre or Andromeda, and see the clocks, the sky, the maps and the spacetime charts as the traveller would, each drawn from what light has actually reached the ship. It doubles as a shareable explainer, so its text is written for general readers.
 
-The page is [`relativistic-navigator.html`](relativistic-navigator.html): one file, with the engine and the star table embedded. It is published from this repository with GitHub Pages (`.github/workflows/pages.yml`).
+The page is [`relativistic-navigator.html`](relativistic-navigator.html): one file, with the engine and the star table embedded. It is published from this repository with GitHub Pages (`.github/workflows/pages.yml`) at <https://tonyxtyan.github.io/SRKit/>.
 
 ## On SRKit
 

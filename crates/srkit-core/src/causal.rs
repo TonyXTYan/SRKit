@@ -29,7 +29,8 @@ use crate::{
 /// Speed of light in metres per second, exactly.
 pub const C_METRES_PER_SECOND: u64 = 299_792_458;
 
-/// The working width for squared quantities: 512 bits holds `10⁶ * 3 * (2^127)²` with room to spare.
+/// The working width for squared quantities. At the finest resolution allowed (10¹² ticks to the second) the
+/// largest is `10²⁴ * 3 * (2^127)²`, about 2^336: 512 bits hold it with room to spare.
 type Wide = BUint<8>;
 
 /// A displacement in whole metres. `i128` metres span 1.8 × 10²² light-years each way.
@@ -179,7 +180,7 @@ pub enum Causal {
 /// The grid must be much finer than the distance light covers in a tick, or rounding a position to the grid
 /// moves an arrival by whole ticks: see [`Resolution::light_steps_per_tick`]. A nanosecond tick on a metre grid
 /// fails that (light covers 0.3 m in a nanosecond); a nanosecond needs a millimetre grid.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Resolution {
     ticks_per_second: u64,
     grid_per_metre: u64,
@@ -330,7 +331,8 @@ pub fn first_arrival<const N: usize>(
 /// grid (evaluate the receiver's worldline in floating point and round). Starting from `estimate`, the search
 /// steps back while the signal has already arrived and forward until it has, so the result is the first tick
 /// that passes the exact check `c dt >= |dx|`: it can never be a tick early. `guard` bounds the number of steps
-/// each way; an estimate further off than that returns [`Error::PrecisionLoss`].
+/// each way and must be at least 1: confirming an estimate that is already right takes one step back, and an
+/// estimate `k` ticks late takes `k + 1`. An estimate further off than that returns [`Error::PrecisionLoss`].
 ///
 /// For a receiver slower than light the check, once true, stays true, so the answer is unique up to the
 /// rounding of positions to the grid.
@@ -410,7 +412,7 @@ where
 /// assert_eq!(heard.duration_since(sent).unwrap().to_string(), "1000000000"); // a second of nanoseconds
 /// assert!(CLOCK.arrived(sent, heard, away));
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Clock<const N: usize> {
     resolution: Resolution,
 }
@@ -454,7 +456,9 @@ impl<const N: usize> Clock<N> {
     pub fn grid(self, x: f64, y: f64, z: f64) -> Result<GridVec, Error> {
         GridVec::from_metres_at(self.resolution, x, y, z)
     }
-    /// A whole number of seconds as a duration of this clock's ticks.
+    /// A whole number of seconds as a duration of this clock's ticks. For more than 2^64 seconds (5.8e11
+    /// years), multiply a full-width count by [`Resolution::ticks_per_second`] and use
+    /// [`Duration::from_raw_ticks`].
     pub fn seconds(self, seconds: u64) -> Result<Duration<N>, Error> {
         BUint::<N>::from_digit(seconds)
             .checked_mul(BUint::from_digit(self.resolution.ticks_per_second))
