@@ -4,7 +4,7 @@ Minkowski (spacetime) diagrams of `srkit-core` worldlines, written as SVG. Time 
 spatial axis runs across. The crate depends on `srkit-core` and the workspace's `libm`, and on nothing else.
 
 This is the SVG export of the `srkit-edu` row in the
-[package plan](../../../docs/engine/spacetime-package-plan.md). The notebooks and the browser playground of
+package plan (`docs/engine/spacetime-package-plan.md` in the game's repository). The notebooks and the browser playground of
 that row are not here.
 
 ## What it draws

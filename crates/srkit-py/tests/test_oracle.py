@@ -1,4 +1,4 @@
-"""The physics oracle (`tools/physics-checks/oracle.csv`): every row that is special relativity, optics or exact
+"""The physics oracle (`oracle/oracle.csv`): every row that is special relativity, optics or exact
 timekeeping, recomputed through the Python API and compared at the row's own tolerance.
 
 These are the rows the Rust core's `tests/oracle.rs` reproduces, computed the same way. The cosmology and

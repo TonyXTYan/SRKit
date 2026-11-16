@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    name: Rust (fmt, clippy, tests, wasm)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain
+        run: rustup show
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: cargo test --workspace --release --locked
+      - run: cargo build --workspace --target wasm32-unknown-unknown --release --locked
+      - run: cargo run --example trip --locked
+
+  javascript:
+    name: JavaScript binding and the Navigator
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install the pinned toolchain
+        run: rustup show
+      - name: Build SRKit for JavaScript
+        run: python3 -I tools/build_js.py
+      - name: The binding's own tests
+        run: node --expose-gc tools/test_js.js
+      - name: Native and wasm32 agree to the bit
+        run: node tools/bits.js
+      - name: The committed Navigator page is this build
+        run: |
+          python3 -I navigator/src/build_srkit.py
+          python3 -I navigator/src/build_nav.py navigator/src/navigator.src.html navigator/src/stars.json "$RUNNER_TEMP/navigator.html" --standalone
+          cmp "$RUNNER_TEMP/navigator.html" navigator/relativistic-navigator.html
+      - name: Navigator against its original equations
+        run: |
+          node navigator/test/backend-parity.js
+          node navigator/test/reach-traveller.js
+      - name: Navigator in a browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1
+          npx playwright install --with-deps chromium
+          node navigator/test/browser-smoke.js
+
+  python:
+    name: Python binding and the oracle
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: The oracle reproduces every row
+        run: |
+          python -m venv "$RUNNER_TEMP/oracle" && . "$RUNNER_TEMP/oracle/bin/activate"
+          pip install numpy scipy mpmath
+          python oracle/oracle_check.py
+      - name: Build and test the binding
+        working-directory: crates/srkit-py
+        run: |
+          python -m venv .venv && . .venv/bin/activate
+          pip install maturin pytest numpy
+          maturin develop --release
+          python -m pytest -q
+          cargo fmt -- --check
+          cargo clippy --all-targets --locked -- -D warnings

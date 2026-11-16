@@ -1,4 +1,4 @@
-//! The numbers printed by the repository's Python reference scripts in `tools/physics-checks/`, reproduced
+//! The numbers printed by the repository's Python reference scripts in `oracle/scripts/`, reproduced
 //! from the closed forms: `lcdm_reach.py`, `event_horizon_windows.py` and `reach_mass_closed_form.py`.
 //!
 //! The scripts integrate numerically on a grid. Since R71.10 (16 Nov 2026) they use the official constants and the

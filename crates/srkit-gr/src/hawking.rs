@@ -13,7 +13,7 @@
 //! is an upper bound. It is a close one for a large hole, because most of the lifetime is spent near the
 //! initial mass.
 //!
-//! The physics oracle (`tools/physics-checks/oracle.csv`) quotes powers and lifetimes from
+//! The physics oracle (`oracle/oracle.csv`) quotes powers and lifetimes from
 //! [`EmissionModel::PhotonBlackbody`], the textbook formula, and `oracle_check.py` marks those rows as
 //! ambiguous because the rows do not name the model. For a hole of 10⁹ kg that model gives `3.6e14 W` and
 //! 2,700 years, while the oracle's estimate for all Standard Model species

@@ -4,22 +4,22 @@ Python bindings for [`srkit-core`](../srkit-core): special relativity in 3+1 Min
 closed forms. Worldlines are piecewise analytic, what an observer sees is a light-cone query, and stored time is
 an exact integer.
 
-Status: experimental and private. The licence of SRKit is not decided, so the package declares none and carries
-the `Private :: Do Not Upload` classifier. Do not publish wheels.
+Status: experimental. MIT licence, as the rest of SRKit. The published name is not settled, so the package
+carries the `Private :: Do Not Upload` classifier: do not publish wheels yet.
 
 ## Install from source
 
 You need Python 3.9 or later and Rust through [rustup](https://rustup.rs). The Rust toolchain is the one pinned
-by `srkit/rust-toolchain.toml` (1.85.1), which rustup picks up from this directory. PyPI and crates.io must be
+by `rust-toolchain.toml` (1.85.1), which rustup picks up from this directory. PyPI and crates.io must be
 reachable for the first build.
 
 ```sh
-cd srkit/crates/srkit-py
+cd crates/srkit-py
 python3 -m venv .venv
 . .venv/bin/activate
 pip install maturin pytest numpy     # NumPy is optional: see "Many times at once"
 maturin develop --release            # builds the extension and installs `srkit` into the venv
-python -m pytest -q                  # the tests read ../../../tools/physics-checks/oracle.csv
+python -m pytest -q                  # the tests read ../../oracle/oracle.csv
 ```
 
 `maturin build --release --locked` writes a wheel to `target/wheels/` instead
@@ -164,7 +164,7 @@ flat lists of floats otherwise (`at_many` then gives three floats per time).
 
 `python -m pytest -q` runs:
 
-- the physics oracle: the 47 rows of `tools/physics-checks/oracle.csv` that are special relativity, optics or
+- the physics oracle: the 47 rows of `oracle/oracle.csv` that are special relativity, optics or
   exact timekeeping (the same rows as the Rust core's oracle test), recomputed through the Python API at each
   row's tolerance;
 - identities through the bindings: proper time inverts coordinate time, light-cone roots lie on the cone,

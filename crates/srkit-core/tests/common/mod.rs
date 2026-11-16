@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 pub const ORACLE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../../tools/physics-checks/oracle.csv"
+    "/../../oracle/oracle.csv"
 ));
 
 /// One oracle row: its stated value as written (the number of significant figures matters) and its tolerance.

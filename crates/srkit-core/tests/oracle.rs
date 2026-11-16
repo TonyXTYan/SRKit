@@ -1,4 +1,4 @@
-//! The physics oracle (`tools/physics-checks/oracle.csv`): every row that is special relativity, optics or
+//! The physics oracle (`oracle/oracle.csv`): every row that is special relativity, optics or
 //! exact timekeeping, recomputed through this crate's public API. The cosmology rows are checked by `srkit-flrw`
 //! and the gravity rows by `srkit-gr`; rows that are game design (real-time pacing, engineering estimates) are not
 //! this library's to claim and are left to `oracle_check.py`.

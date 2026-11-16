@@ -122,7 +122,7 @@ One identity fell out of the tests: the particle horizon equals the event horizo
 
 `cargo test -p srkit-flrw` runs:
 
-- **The physics oracle** (`tests/oracle.rs`): the cosmology rows of `tools/physics-checks/oracle.csv` (SR-20,
+- **The physics oracle** (`tests/oracle.rs`): the cosmology rows of `oracle/oracle.csv` (SR-20,
   SR-21, SR-68, DT-15 to DT-18, DT-23, DT-25 to DT-29), at each row's tolerance, with the oracle's own
   `1/H_Λ` = 17.53 Gyr and with the Planck 2018 preset.
 - **Golden values** (`tests/golden.rs`): 2,618 values in `tests/golden.csv`, written by `tools/crosscheck.py`
@@ -169,5 +169,5 @@ left underflows to zero at `H_Λ t` = 745.
 Planck Collaboration VI 2020, A&A 641, A6 (arXiv:1807.06209); Fixsen 2009, ApJ 707, 916; Rindler 1956, MNRAS
 116, 662; Davis & Lineweaver 2004 (arXiv:astro-ph/0310808); Hogg 1999 (arXiv:astro-ph/9905116); Baes, Camps &
 Van De Putte 2017, MNRAS 468, 927; Loeb 2002, Phys. Rev. D 65, 047301; Busha et al. 2003, ApJ 596, 713; Gibbons
-& Hawking 1977, Phys. Rev. D 15, 2738; DLMF chapter 15 (15.8.1 and 15.8.2). In this repository:
+& Hawking 1977, Phys. Rev. D 15, 2738; DLMF chapter 15 (15.8.1 and 15.8.2). In the game's repository:
 `docs/engine/spacetime-package-plan.md`, `docs/engine/deep-time-engine.md` section 4.

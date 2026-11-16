@@ -3,7 +3,7 @@
 Closed-form general-relativity scalars for SRKit: numbers that have an exact formula, evaluated directly.
 `no_std`, no allocation, no `unsafe`, every transcendental through the pure-Rust `libm`.
 
-It is the `srkit-gr` layer of the [package plan](../../../docs/engine/spacetime-package-plan.md): "a small
+It is the `srkit-gr` layer of the package plan (`docs/engine/spacetime-package-plan.md` in the game's repository): "a small
 set of closed-form scalars, each cross-checked".
 
 ## What it provides
@@ -55,7 +55,7 @@ emission decided in R25.5). It gives the scalar once the model is chosen. A life
 
 ## How it was checked
 
-Run from the workspace directory `srkit/`:
+Run from the repository root:
 
 ```sh
 cargo test -p srkit-gr
@@ -64,7 +64,7 @@ cargo fmt -p srkit-gr -- --check
 cargo build -p srkit-gr --target wasm32-unknown-unknown --release
 ```
 
-- **Physics oracle** (`tests/oracle.rs`): the 24 gravity rows of `tools/physics-checks/oracle.csv` (SR-40 to
+- **Physics oracle** (`tests/oracle.rs`): the 24 gravity rows of `oracle/oracle.csv` (SR-40 to
   SR-43, SR-47 to SR-49, SR-53 to SR-65, DT-19 to DT-22), read from the CSV and compared at each row's own
   tolerance. Nine rows are quoted to two figures and lie more than 1% from the true value; for exactly
   those the test accepts a value that rounds to the stated one, as `oracle_check.py` does (its ROUNDED

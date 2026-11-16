@@ -10,10 +10,10 @@ from pathlib import Path
 
 import pytest
 
-# tests/ -> srkit-py -> crates -> srkit -> repository root
-REPO_ROOT = Path(__file__).resolve().parents[4]
+# tests/ -> srkit-py -> crates -> repository root
+REPO_ROOT = Path(__file__).resolve().parents[3]
 ORACLE_CSV = Path(
-    os.environ.get("SRKIT_ORACLE_CSV", REPO_ROOT / "tools" / "physics-checks" / "oracle.csv")
+    os.environ.get("SRKIT_ORACLE_CSV", REPO_ROOT / "oracle" / "oracle.csv")
 )
 
 
@@ -26,7 +26,7 @@ def _sig_figs(stated: str) -> int:
 
 
 class OracleRow:
-    """One row of `tools/physics-checks/oracle.csv`."""
+    """One row of `oracle/oracle.csv`."""
 
     def __init__(self, record: dict[str, str]):
         self.id = record["id"]
@@ -59,7 +59,7 @@ def oracle() -> dict[str, OracleRow]:
     if not ORACLE_CSV.is_file():
         pytest.fail(
             f"the physics oracle was not found at {ORACLE_CSV}: run the tests from a checkout of the "
-            "repository, or point SRKIT_ORACLE_CSV at tools/physics-checks/oracle.csv"
+            "repository, or point SRKIT_ORACLE_CSV at oracle/oracle.csv"
         )
     with ORACLE_CSV.open(encoding="utf-8", newline="") as handle:
         rows = [OracleRow(record) for record in csv.DictReader(handle)]

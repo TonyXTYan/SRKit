@@ -16,7 +16,7 @@ or 1 and rows inside the ISCO are skipped.
 Run by hand (it is not part of `cargo test`):
 
     pip install kerrgeopy mpmath
-    python srkit/crates/srkit-gr/tools/crosscheck_kerrgeopy.py
+    python crates/srkit-gr/tools/crosscheck_kerrgeopy.py
 """
 import csv
 import sys

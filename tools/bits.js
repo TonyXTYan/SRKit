@@ -1,5 +1,5 @@
 // The same results, to the bit, from the native build and the WebAssembly build.
-//     python3 -I srkit/tools/build_js.py && node srkit/tools/bits.js
+//     python3 -I tools/build_js.py && node tools/bits.js
 // Runs `cargo run -p srkit-wasm --example bits` (native: whatever this machine is) and the identical list of calls
 // through dist/srkit.wasm, and compares bit patterns. Every transcendental goes through the pure-Rust libm, so the two
 // must agree exactly. Run it on each architecture that matters; a difference is a determinism bug.

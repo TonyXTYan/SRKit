@@ -4,8 +4,10 @@ description = "Python bindings for SRKit: piecewise-analytic worldlines, light-c
 version = "0.2.0"
 edition = "2021"
 rust-version = "1.85"
+license = "MIT"
+authors = ["Tony Yan", "Claude Code (Anthropic)"]
 publish = false
-repository = "https://github.com/TonyXTYan/The-Special-Relativity-Game"
+repository = "https://github.com/TonyXTYan/SRKit"
 readme = "README.md"
 
 # This crate needs a Python toolchain (PyO3 + maturin), so the srkit workspace excludes it and it is its own

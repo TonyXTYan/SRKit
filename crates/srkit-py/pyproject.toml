@@ -7,9 +7,12 @@ name = "srkit"
 description = "Special relativity in 3+1 Minkowski spacetime: piecewise-analytic worldlines, light-cone queries and exact integer clocks"
 readme = "README.md"
 requires-python = ">=3.9"
-# The licence of SRKit is not decided yet, so none is declared and the package must stay private.
+license = { text = "MIT" }
+authors = [{ name = "Tony Yan" }, { name = "Claude Code (Anthropic)" }]
+# Not on PyPI yet: the published name is not settled, so the first classifier stops an upload.
 classifiers = [
     "Private :: Do Not Upload",
+    "License :: OSI Approved :: MIT License",
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",

@@ -1,6 +1,6 @@
 //! The general-relativity and gravity rows of the shared physics oracle.
 //!
-//! `tools/physics-checks/oracle.csv` is the single source of the stated values; this test reads it and
+//! `oracle/oracle.csv` is the single source of the stated values; this test reads it and
 //! computes each covered row with this crate's public functions, in the way `oracle_check.py` defines the row.
 //!
 //! A row passes if the computed value is within the row's own tolerance (column 6, ±1%). Nine of the covered
@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 
 const ORACLE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../../tools/physics-checks/oracle.csv"
+    "/../../oracle/oracle.csv"
 ));
 
 /// None since R71.10 (16 Nov 2026), when these nine rows were given a third figure. Before that:
@@ -257,7 +257,7 @@ fn gravity_rows_of_the_physics_oracle() {
     );
 }
 
-/// `tools/physics-checks/hawking_scaling.py`: the photon-only lifetime of one solar mass, its cubic scaling
+/// `oracle/scripts/hawking_scaling.py`: the photon-only lifetime of one solar mass, its cubic scaling
 /// with mass, and the hole whose lifetime overflows a 384-bit count of milliseconds.
 #[test]
 fn hawking_scaling_script() {

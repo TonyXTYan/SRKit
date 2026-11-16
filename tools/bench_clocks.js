@@ -1,6 +1,6 @@
 // The stored clock at three widths and three tick lengths, in WebAssembly (questions R23.8 and R71.4). Run after
 // tools/build_js.py:
-//     node srkit/tools/bench_clocks.js
+//     node tools/bench_clocks.js
 // Each round advances a time by one tick, takes a difference, compares, reduces to a yearly phase and makes an
 // exact arrival check. The loop runs inside the module, so this measures the arithmetic, not the JS boundary.
 'use strict';

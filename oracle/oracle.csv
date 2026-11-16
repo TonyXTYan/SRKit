@@ -1,0 +1,120 @@
+id,group,quantity,stated,unit,tolerance
+SR-01,spine,c/a at a=10 m/s^2,0.950,yr,0.01
+SR-02,spine,c^2/a at a=10 m/s^2,0.950,ly,0.01
+SR-03,spine,1 g flip-and-burn 1e5 ly: tau,22.37,yr,0.01
+SR-04,spine,1 g flip-and-burn 1e5 ly: t,100001.9,yr,0.01
+SR-05,spine,1 g flip-and-burn 1e5 ly: peak gamma,5.162e4,,0.01
+SR-06,spine,"photon-rocket mass ratio, that trip",1.066e10,,0.01
+SR-07,spine,photon-rocket exponent 2*phi,23.09,,0.01
+SR-08,spine,1 g to 0.9c,1.43,yr,0.01
+SR-09,spine,"loop gamma at 1 g, r=1 ly",1.43,,0.01
+SR-10,spine,"loop gamma at 1 g, r=100 ly",10.2,,0.01
+SR-11,spine,"loop gamma at 1 g, r=10000 ly",102,,0.01
+SR-12,spine,"loop gamma at 1 g, r=50000 ly",227,,0.01
+SR-13,spine,"100 ly loop lap, cosmic",631,yr,0.01
+SR-14,spine,"100 ly loop lap, proper",62,yr,0.01
+SR-15,spine,loop Doppler min gamma(1-beta),0.049,,0.01
+SR-16,spine,loop Doppler max gamma(1+beta),20.3,,0.01
+SR-17,spine,loop lap-average D / gamma,1.0,,0.001
+SR-18,spine,"loop sync gap, ring proper time 2 pi r v gamma/c^2 (100 ly)",6384,yr,0.01
+SR-19,spine,"loop sync gap, lab time 2 pi r v gamma^2/c^2 (100 ly)",6.517e4,yr,0.01
+SR-20,spine,Hubble drag gamma saturation at 1 g,1.8e10,,0.01
+SR-21,spine,Hubble drag: tau to 1e100 yr,5.5e89,yr,0.01
+SR-22,spine,flat-space 1 g to 1e100 yr: tau,224,yr,0.01
+SR-23,spine,"warning time Mars 20 min, beta=0.01",33,h,0.01
+SR-24,spine,"warning time Mars 20 min, beta=0.5",20,min,0.01
+SR-25,spine,"warning time Mars 20 min, beta=0.9999",0.12,s,0.01
+SR-26,spine,"warning time Mars 20 min, beta=0.99999",12,ms,0.01
+SR-27,spine,KE/kg at 0.9999c,1.50,Gt TNT,0.01
+SR-28,spine,gamma at 0.9999c,70.7,,0.01
+SR-29,spine,head-on blueshift at 0.9999c,141,,0.01
+SR-30,spine,KE/kg at 0.99999c,4.78,Gt TNT,0.01
+SR-31,spine,gamma at 0.99999c,223.6,,0.01
+SR-32,spine,head-on blueshift at 0.99999c,447,,0.01
+SR-33,spine,light delay real: Mars,2.4,ms,0.01
+SR-34,spine,light delay real: Voyager 1 170 AU,0.16,s,0.01
+SR-35,spine,light delay real: inner Oort 2000 AU,1.9,s,0.01
+SR-36,spine,light delay real: outer Oort 1e5 AU,1.58,min,0.01
+SR-37,spine,light delay real: Proxima,4.25,min,0.01
+SR-38,spine,light delay real: 100 ly,1.667,h,0.01
+SR-39,spine,light delay real: galaxy 1e5 ly,69,d,0.01
+SR-40,spine,"Hohmann Mars, real",42.5,s,0.01
+SR-41,spine,"Hohmann Jupiter, real",2.73,min,0.01
+SR-42,spine,"Hohmann Neptune, real",30.6,min,0.01
+SR-43,spine,"Mars synodic, real",2.14,min,0.01
+SR-44,spine,"antimatter, 1000 t, 1 g, Proxima",1.9e7,kg,0.01
+SR-45,spine,"antimatter, 1000 t, 1 g, galaxy 1e5 ly",5.3e15,kg,0.01
+SR-46,spine,Dyson multiplier L / sunlight on Earth,2.2e9,,0.01
+SR-47,spine,dismantle Mercury 0.6GM^2/R,1.8e30,J,0.01
+SR-48,spine,dismantle Earth 0.6GM^2/R,2.24e32,J,0.01
+SR-49,spine,dismantle Jupiter 0.6GM^2/R,2.06e36,J,0.01
+SR-50,spine,freight KE/kg at 0.01c,1.074,kt TNT,0.01
+SR-51,spine,freight KE/kg at 0.1c,108,kt TNT,0.01
+SR-52,spine,overtaking window Proxima 0.01c vs 0.1c,382,yr,0.01
+SR-53,spine,"Kerr ISCO dt/dtau, a=0",1.41,,0.01
+SR-54,spine,"accretion efficiency, a=0",5.7,%,0.01
+SR-55,spine,"Kerr ISCO dt/dtau, a=0.9",2.7,,0.01
+SR-56,spine,"accretion efficiency, a=0.9",15.6,%,0.01
+SR-57,spine,"Kerr ISCO dt/dtau, a=0.998",10.8,,0.01
+SR-58,spine,"accretion efficiency, a=0.998",32,%,0.01
+SR-59,spine,"Kerr ISCO dt/dtau, a=1-1e-6",145,,0.01
+SR-60,spine,"accretion efficiency, a=1-1e-6",41,%,0.01
+SR-61,spine,"Kerr ISCO dt/dtau, a=1-1e-14",6.8e4,,0.01
+SR-62,spine,"accretion efficiency, a=1-1e-14",42,%,0.01
+SR-63,spine,spin-up 1e6 kg to gamma=227,2.03e25,J,0.01
+SR-64,spine,Hawking 1e9 kg: power,3.56e14,W,0.01
+SR-65,spine,Hawking 1e9 kg: lifetime,2665,yr,0.01
+SR-66,spine,"star lifting 0.9 Msun, GMm/R",3.4e41,J,0.01
+SR-67,spine,Shkadov a = L/(2Mc),3.2e-13,m/s^2,0.01
+SR-68,spine,Landauer gain 2.7 K -> T_dS,1.23e30,,0.01
+SR-69,spine,"beam spot lambda d/D, 1 um, 1000 km, 100 ly",950,km,0.01
+SR-70,spine,beam reach Dt Dr/lambda,106,ly,0.01
+SR-71,spine,beam push for 1 Lsun,1.28e18,N,0.01
+SR-72,spine,galactic rotation at v = 220 km/s: beta,7.34e-4,,0.01
+SR-73,spine,galactic rotation at v = 220 km/s: gamma-1,2.69e-7,,0.01
+SR-80,megastructures,"beamed sail, 1000 t at 1 g to Proxima's turnover: beam energy",2.35e23,J,0.01
+SR-81,megastructures,"beamed sail, that leg: peak source power",5.69e16,W,0.01
+SR-82,megastructures,"photon rocket, 1000 t, 1 g, Proxima: propellant rest energy",3.39e24,J,0.01
+SR-83,megastructures,"half of Mercury as collectors over the sphere at its orbit",3.92,kg/m^2,0.01
+SR-84,megastructures,"Earth elevator taper ratio at sigma/rho 5e7 J/kg",2.63,,0.01
+SR-85,megastructures,"Mars elevator taper ratio at sigma/rho 5e7 J/kg",1.21,,0.01
+SR-86,megastructures,"bow heating aboard at gamma 3.19, 0.1 protons per cm^3",2.99e4,W/m^2,0.01
+SR-87,megastructures,"diffraction lambda/D at 1 um over a 1 AU aperture",6.68e-18,rad,0.01
+DT-01,deep-time §7,bits to reach 1e100 yr at 1 ms,367.1,,0.01
+DT-02,deep-time §7,U384 ms range,1.25e105,yr,0.01
+DT-03,deep-time §7,f64: ms resolution until,2.85e5,yr,0.01
+DT-04,deep-time §7,f64: minute resolution until,1.71e10,yr,0.01
+DT-05,deep-time §7,f64 ms count: spacing at 1e100 yr,2.12e84,yr,0.01
+DT-06,deep-time §7,1 ms real at 1 yr=1 min,8.77,game-min,0.01
+DT-07,deep-time §7,60 fps frame,146,game-min,0.01
+DT-08,deep-time §7,"expm1 form rel. error vs mpmath, phi=1..231",1e-15,,0.01
+DT-09,deep-time §7,naive form: ms accuracy lost past phi,12.6,,0.01
+DT-10,deep-time §7,naive form: noise past phi,37,,0.01
+DT-11,deep-time §7,playback rate D = e^-phi (phi=5),0.00673795,,0.01
+DT-12,deep-time §7,flat-space 1 g to 1e100 yr: phi,231.0,,0.01
+DT-13,deep-time §7,orbit phase at 1e20 yr: |integer - mpmath|,0,cycles,0.01
+DT-14,deep-time §7,causal rounding: guard band + exact check failures / 1e5,0,,0
+DT-15,deep-time §7,T_dS = hbar H/(2 pi kB),2.20e-30,K,0.01
+DT-16,deep-time §7,T_CMB = T_dS: scale factor,1.24e30,,0.01
+DT-17,deep-time §7,T_CMB = T_dS: e-folds ln a,69.3,,0.01
+DT-18,deep-time §7,T_CMB = T_dS: cosmic time,1.23e12,yr,0.01
+DT-19,deep-time §7,"Hawking T, 1e11 Msun",6.17e-19,K,0.01
+DT-20,deep-time §7,"Hawking T, 1 Msun (section 5 prose 6.2e-8)",6.17e-8,K,0.01
+DT-21,deep-time §7,"Hawking lifetime, 1e11 Msun",2.10e100,yr,0.01
+DT-22,deep-time §7,"Hawking lifetime, 1 Msun",2.10e67,yr,0.01
+DT-23,deep-time §7,"island lifetime bits, 1e12 Msun at T_dS",8.5e111,,0.01
+DT-24,deep-time §7,1 TWh at 300 K in bits,1.25e36,,0.01
+DT-25,deep-time §7,Lambda tidal accel. H_L^2 r at 50 kly,1.55e-15,m/s^2,0.01
+DT-26,deep-time §7,H d/c across 1e5 ly,5.7e-6,,0.01
+DT-27,deep-time §7,Last Light gain per 10x area,13.5,Gyr,0.01
+DT-28,deep-time §7,f64 overflow of a: H t,710,,0.01
+DT-29,deep-time §7,f64 overflow of a: t,1.25e13,yr,0.01
+DT-30,deep-time §7,"v_front, l=5 ly, v=0.1c, T_rep=300 yr",0.0143,c,0.01
+DT-31,deep-time §7,galaxy filled,7.0,Myr,0.01
+DT-32,deep-time §1,double-double ms range,2.57e21,yr,0.01
+DT-33,deep-time §1,i128 ms range,5.4e27,yr,0.01
+DT-34,deep-time §1,U256 ms range,3.7e66,yr,0.01
+DT-35,deep-time §1,bits to 1e100 yr at minute (ceil),352,,0.01
+DT-36,deep-time §1,bits to 1e100 yr at 1 s (ceil),358,,0.01
+DT-37,deep-time §1,bits to 1e100 yr at 1 us (ceil),378,,0.01
+DT-38,arena brainstorm §3.1,u64 ms range,5.85e8,yr,0.01

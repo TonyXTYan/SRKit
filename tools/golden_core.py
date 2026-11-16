@@ -7,7 +7,7 @@ cases and compares to a stated relative tolerance. Nothing here shares code with
 textbook formula (or a quadrature, or a root found by mpmath) and is independent of how the crate computes it.
 
 Run from the repository root:
-    python srkit/tools/golden_core.py > srkit/crates/srkit-core/tests/golden/core.txt
+    python tools/golden_core.py > crates/srkit-core/tests/golden/core.txt
 The output is deterministic (fixed seed). Changing a golden value is a breaking change: see the README.
 """
 import random

@@ -1,5 +1,5 @@
 // Tests for SRKit's JavaScript binding (dist/srkit.js), run in Node:
-//     python3 -I srkit/tools/build_js.py && node --expose-gc srkit/tools/test_js.js
+//     python3 -I tools/build_js.py && node --expose-gc tools/test_js.js
 // They check the binding, not the physics (the Rust tests do that): that every part of the API reaches the module
 // and comes back in the documented shape, that plain-object worldlines give the same answers whether the module
 // holds a copy or not, that memory growth and garbage collection are handled, and that failures are explicit.

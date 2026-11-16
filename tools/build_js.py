@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Build SRKit for JavaScript: compile srkit-wasm, embed it in the loader, write dist/.
 
-    python3 -I srkit/tools/build_js.py [--copy-to PATH ...]
+    python3 -I tools/build_js.py [--copy-to PATH ...]
 
-Writes srkit/dist/srkit.js (one classic script with the module embedded), srkit/dist/srkit.wasm and
-srkit/dist/srkit.d.ts. Each --copy-to PATH also writes the script there, for an application that carries its own
+Writes dist/srkit.js (one classic script with the module embedded), dist/srkit.wasm and
+dist/srkit.d.ts. Each --copy-to PATH also writes the script there, for an application that carries its own
 copy. The toolchain is pinned by rust-toolchain.toml and the dependencies by Cargo.lock; source paths are remapped,
 so the same commit gives the same bytes on any machine. The SHA-256 of the module is recorded in SRKit.info.
 """
@@ -37,7 +37,7 @@ for mark in ('/*WASM_BASE64*/', '/*VERSION*/', '/*WASM_SHA256*/', '/*WASM_BYTES*
 js = (src.replace('/*WASM_BASE64*/', base64.b64encode(wasm).decode('ascii'))
          .replace('/*VERSION*/', version).replace('/*WASM_SHA256*/', digest).replace('/*WASM_BYTES*/0', str(len(wasm))))
 js = js.replace("This file is the source; tools/build_js.py embeds the compiled module and writes dist/srkit.js.",
-                f"Built by srkit/tools/build_js.py from srkit {version}; do not edit. Module SHA-256 {digest}.")
+                f"Built by tools/build_js.py from srkit {version}; do not edit. Module SHA-256 {digest}.")
 dist = root / 'dist'
 dist.mkdir(exist_ok=True)
 (dist / 'srkit.js').write_text(js)

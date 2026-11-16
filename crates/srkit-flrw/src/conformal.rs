@@ -178,7 +178,7 @@ impl Cosmology {
     /// It is exactly 1 at `a = a_eq/2` (0.386 for Planck 2018), where the two horizons cross because
     /// `η(a_eq/2) = η_∞/2` in every flat matter + Λ universe. It is 4.5% today for Planck 2018. Radiation,
     /// which this model leaves out, shrinks the particle horizon by 1.9% and so raises today's share by 6%
-    /// of itself: `tools/physics-checks/lcdm_reach.py` gets 4.6% with radiation where this function gives
+    /// of itself: `oracle/scripts/lcdm_reach.py` gets 4.6% with radiation where this function gives
     /// 4.3% for the same `H0` and `Ω_m`.
     pub fn reachable_share_of_observable(&self, t: f64) -> f64 {
         let v = self.v(t);
@@ -202,7 +202,7 @@ impl Cosmology {
     ///
     /// `F` depends on `H_Λ t` alone, so the reach mass does not depend on `Ω_m` at a given `H_Λ` and `H_Λ t`.
     /// `F(0) = Γ(1/6) Γ(1/3)/(3 √π)` = 2.8044. The mass counts dark and baryonic matter (`Ω_m`). Reference:
-    /// `tools/physics-checks/reach_mass_closed_form.py` and `docs/research/constants-gameplay.md` section 6.
+    /// `oracle/scripts/reach_mass_closed_form.py` and `docs/research/constants-gameplay.md` section 6.
     /// The value carries the 2.2e-5 relative uncertainty of `G`.
     pub fn reach_mass(&self, t: f64) -> f64 {
         let f = rem_hat(self.v(t));

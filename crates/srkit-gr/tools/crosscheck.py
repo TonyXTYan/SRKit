@@ -24,8 +24,8 @@ The references do not copy the crate's formulas where another route exists:
 
 Run (from the repository root; needs mpmath only):
 
-    python srkit/crates/srkit-gr/tools/crosscheck.py            # rewrite the CSV
-    python srkit/crates/srkit-gr/tools/crosscheck.py --check    # fail if the checked-in CSV is out of date
+    python crates/srkit-gr/tools/crosscheck.py            # rewrite the CSV
+    python crates/srkit-gr/tools/crosscheck.py --check    # fail if the checked-in CSV is out of date
 
 The constants below must equal srkit-core/src/units.rs. They are written into the CSV as `constant` rows and
 the Rust test compares them bit for bit, so a change of a constant fails the test until this file is rerun.

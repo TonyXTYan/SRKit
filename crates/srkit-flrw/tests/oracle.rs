@@ -1,4 +1,4 @@
-//! The cosmology rows of the shared physics oracle, `tools/physics-checks/oracle.csv`.
+//! The cosmology rows of the shared physics oracle, `oracle/oracle.csv`.
 //!
 //! Each row is computed twice: with the oracle's own convention (`1/H_Λ` = 17.53 Gyr, `Ω_m` = 0.315, as in
 //! `oracle_check.py`) and with the crate's Planck 2018 preset (`1/H_Λ` = 17.528 Gyr). Both must agree with the
@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 const ORACLE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../../tools/physics-checks/oracle.csv"
+    "/../../oracle/oracle.csv"
 ));
 
 /// Solar mass in kilograms, as `oracle_check.py` has it since R71.10: the IAU nominal GM☉ over CODATA G.

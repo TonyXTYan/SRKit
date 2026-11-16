@@ -318,10 +318,10 @@ def test_version_and_packaging():
     tomllib = pytest.importorskip("tomllib")
     project = tomllib.loads((CRATE / "pyproject.toml").read_text(encoding="utf-8"))
     assert "Private :: Do Not Upload" in project["project"]["classifiers"]
-    # the licence is not decided: none is declared, here or in Cargo.toml
-    assert "license" not in project["project"] and "license-files" not in project["project"]
-    assert not any(c.startswith("License ::") for c in project["project"]["classifiers"])
-    assert not re.search(r"^license", cargo, re.M)
+    # MIT, declared in both manifests; the upload stop stays until the published name is settled
+    assert project["project"]["license"] == {"text": "MIT"}
+    assert "License :: OSI Approved :: MIT License" in project["project"]["classifiers"]
+    assert re.search(r'^license = "MIT"$', cargo, re.M)
     assert project["tool"]["maturin"]["module-name"] == "srkit._srkit"
     assert 'features = ["abi3-py39"]' in cargo  # one wheel for CPython 3.9 and later
     assert "numpy" not in " ".join(project["project"].get("dependencies", []))  # NumPy stays optional
