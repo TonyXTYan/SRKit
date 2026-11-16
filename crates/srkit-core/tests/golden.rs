@@ -39,7 +39,7 @@ fn golden_vectors() {
                 (
                     vec![s.x.x, s.v.x, g.dtau(i[2])],
                     vec![0.0, 1e-3, 0.0],
-                    2e-13,
+                    1e-14,
                 )
             }
             "hyp_tau" => {
@@ -62,7 +62,7 @@ fn golden_vectors() {
                     vec![t.tau, t.t_end, t.du, t.dv, t.gamma_peak, t.lag],
                     vec![0.0; 6],
                     // a capped leg's coast is the difference of the leg and its two burns
-                    if i[2].is_finite() { 1e-11 } else { 1e-14 },
+                    if i[2].is_finite() { 1e-13 } else { 1e-14 },
                 )
             }
             "trip_state" => {
@@ -71,7 +71,7 @@ fn golden_vectors() {
                 (
                     vec![s.u, s.v, s.phi],
                     vec![0.0, 0.0, 1e-3],
-                    if i[2].is_finite() { 1e-10 } else { 1e-12 },
+                    if i[2].is_finite() { 1e-12 } else { 2e-14 },
                 )
             }
             "observe" => {
@@ -119,7 +119,7 @@ fn golden_vectors() {
                 (
                     vec![s.t, s.x.x, s.phi, g.mass_fraction(i[3])],
                     vec![0.0, s.t.abs(), 1e-3, 0.0],
-                    1e-13,
+                    1e-14,
                 )
             }
             "kepler" => (

@@ -1275,6 +1275,90 @@ exact_time!(
     time512_classify
 );
 
+// ---------------------------------------------------------------------------------------------- cosmology
+
+/// One function of `srkit-flrw`, for the flat ΛCDM universe with Hubble constant `h0_per_year` (per Julian
+/// year) and matter density `omega_m`. Times are in years since the Big Bang, lengths in light-years (comoving
+/// lengths are proper lengths today). NaN where there is no answer (a signal that never arrives) or the input
+/// is invalid.
+///
+/// | Code | Function | Arguments |
+/// |---|---|---|
+/// | 0 | age now | |
+/// | 1 | scale factor | t |
+/// | 2 | time at a scale factor | a |
+/// | 3 | Hubble rate | t |
+/// | 4 | conformal time | t |
+/// | 5 | conformal time at infinity | |
+/// | 6, 7 | event horizon: comoving, proper | t |
+/// | 8, 9 | particle horizon: comoving, proper | t |
+/// | 10 | reach of light sent at t | t |
+/// | 11 | last time to signal a target at comoving distance | chi |
+/// | 12 | last time to signal and still get a reply | chi |
+/// | 13 | arrival time of light | t emitted, chi |
+/// | 14 | emission time of light | t received, chi |
+/// | 15 | comoving distance light covers | t from, t to |
+/// | 16 | lookback time | z |
+/// | 17 | time at a redshift | z |
+/// | 18 | redshift between two times | t emitted, t received |
+/// | 19 | proper velocity (gamma beta) of a coasting body after Hubble drag | u, t from, t to |
+/// | 20 | Lorentz factor at which a rocket's thrust balances Hubble drag | alpha |
+/// | 21 | de Sitter Hubble rate | |
+/// | 22 | de Sitter horizon | |
+/// | 23 | de Sitter temperature, K | |
+/// | 24 | background temperature, K | t, temperature today |
+/// | 25 | time when the background cools to the de Sitter temperature | temperature today |
+/// | 26 | mass within reach, kg | t |
+/// | 27 | share of the observable universe still reachable | t |
+#[no_mangle]
+pub extern "C" fn flrw(code: u32, h0_per_year: f64, omega_m: f64, a: f64, b: f64, c: f64) -> f64 {
+    let Some(u) = srkit_flrw::Cosmology::per_year(h0_per_year, omega_m) else {
+        return f64::NAN;
+    };
+    let some = |v: Option<f64>| v.unwrap_or(f64::NAN);
+    match code {
+        0 => u.age(),
+        1 => u.scale_factor(a),
+        2 => u.time_at_scale_factor(a),
+        3 => u.hubble(a),
+        4 => u.conformal_time(a),
+        5 => u.conformal_time_limit(),
+        6 => u.event_horizon(a),
+        7 => u.event_horizon_proper(a),
+        8 => u.particle_horizon(a),
+        9 => u.particle_horizon_proper(a),
+        10 => u.reach(a),
+        11 => some(u.last_contact_time(a)),
+        12 => some(u.last_reply_time(a)),
+        13 => some(u.light_arrival_time(a, b)),
+        14 => some(u.light_emission_time(a, b)),
+        15 => u.comoving_distance(a, b),
+        16 => u.lookback_time(a),
+        17 => u.time_at_redshift(a),
+        18 => u.redshift_between(a, b),
+        19 => u.coasting_proper_velocity(a, b, c),
+        20 => u.drag_limited_gamma(a),
+        21 => u.h_lambda(),
+        22 => u.de_sitter_horizon(),
+        23 => u.de_sitter_temperature(),
+        24 => u.cmb_temperature(a, b),
+        25 => u.cmb_crossover_time(a),
+        26 => u.reach_mass(a),
+        27 => u.reachable_share_of_observable(a),
+        _ => f64::NAN,
+    }
+}
+/// The Planck 2018 Hubble constant per Julian year (`which = 0`) and matter density (`which = 1`).
+#[no_mangle]
+pub extern "C" fn flrw_planck_2018(which: u32) -> f64 {
+    let u = srkit_flrw::Cosmology::PLANCK_2018;
+    if which == 0 {
+        u.h0()
+    } else {
+        u.omega_m()
+    }
+}
+
 // ---------------------------------------------------------------------------------------------- benchmark
 
 /// The clock-width benchmark (question R23.8), run inside the module so that the cost measured is the

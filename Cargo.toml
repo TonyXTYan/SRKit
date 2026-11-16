@@ -22,7 +22,8 @@ repository = "https://github.com/TonyXTYan/The-Special-Relativity-Game"
 bnum = { version = "=0.12.0", default-features = false }
 libm = "=0.2.15"
 proptest = "=1.6.0"
-srkit-core = { path = "crates/srkit-core" }
+# Allocation-free by default: a crate that wants owned worldlines asks for the `alloc` feature.
+srkit-core = { path = "crates/srkit-core", default-features = false }
 srkit-flrw = { path = "crates/srkit-flrw" }
 srkit-gr = { path = "crates/srkit-gr" }
 srkit-log = { path = "crates/srkit-log" }

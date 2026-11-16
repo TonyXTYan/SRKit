@@ -8,7 +8,7 @@ publish.workspace = true
 repository.workspace = true
 
 [dependencies]
-srkit-core.workspace = true
+srkit-core = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 proptest.workspace = true

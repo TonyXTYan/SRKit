@@ -58,8 +58,15 @@ The JavaScript build (from the repository root; Python 3 and Node):
 
 ```sh
 python3 -I srkit/tools/build_js.py              # srkit/dist/srkit.js, srkit.wasm, srkit.d.ts
-node srkit/tools/test_js.js                     # the binding's own tests
+node --expose-gc srkit/tools/test_js.js         # the binding's own tests
+node srkit/tools/bits.js                        # native and wasm32 give the same bits
 node srkit/tools/bench_clocks.js                # U384 against U512 in WebAssembly
+```
+
+One script runs all of the above, and with `--apps` the two applications' checks as well:
+
+```sh
+srkit/tools/check_all.sh --apps
 ```
 
 `build_js.py` remaps source paths, so one commit gives the same module bytes on any machine; the module's SHA-256 is in `SRKit.info.sha256` and is shown by both applications. The applications carry their own copy of the built script (see below).
@@ -110,7 +117,9 @@ SRKit.time.arrived('3' + '0'.repeat(110), '3' + '0'.repeat(98) + '134009348401',
 
 Every transcendental goes through the pure-Rust `libm`; there is no `unsafe` outside the binding crates' export attributes, no threads, no hash-map iteration and no fused multiply-add. One build therefore gives the same bits on any IEEE 754 platform, and the WebAssembly build gives the same bits in every browser, which JavaScript's own `Math` does not promise.
 
-Not yet done from the plan's contract (§3): golden vectors compared bit for bit across x86-64, aarch64 and wasm32 in CI, and an error bound in units in the last place stated for each function. The golden tests here compare to a tolerance. Until both are in place the contract is not frozen and a release is 0.x.
+`tools/bits.js` checks this where it can: it runs a fixed list of calls natively and through the WebAssembly build and compares bit patterns. On x86-64 the two agree on every result. `srkit-flrw` pins 40 of its results to the bit in a test.
+
+Not yet done from the plan's contract (§3): the same comparison on aarch64, a pinned golden file of bit patterns in CI for every crate, and an error bound in units in the last place stated for each function. The golden tests here compare to a tolerance. Until those are in place the contract is not frozen and a release is 0.x.
 
 ## Limits
 
@@ -128,7 +137,7 @@ srkit/
   Cargo.toml, Cargo.lock, rust-toolchain.toml
   crates/            the seven crates
   js/                srkit.src.js (the loader) and srkit.d.ts
-  tools/             build_js.py, test_js.js, bench_clocks.js, golden_core.py
+  tools/             build_js.py, test_js.js, bits.js, bench_clocks.js, golden_core.py, check_all.sh
   dist/              built output (not tracked)
 ```
 

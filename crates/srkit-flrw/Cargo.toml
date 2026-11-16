@@ -1,6 +1,6 @@
 [package]
 name = "srkit-flrw"
-description = "SRKit: placeholder"
+description = "Flat Lambda-CDM cosmology in closed form for an observer inside the universe: scale factor, conformal time, horizons, last contact, Hubble drag and the de Sitter limit"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,3 +10,6 @@ repository.workspace = true
 [dependencies]
 srkit-core.workspace = true
 libm.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

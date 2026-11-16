@@ -329,13 +329,37 @@
     const units = Object.freeze({ C: U(0), YEAR: U(1), LY: U(2), AU: U(3), PC: U(4), G0: U(5), H: U(6), HBAR: U(7), KB: U(8), G: U(9), SIGMA: U(10), L_SUN: U(11), R_SUN: U(12), GM_SUN: U(13),
       G_PER_YEAR: U(14), AU_LY: U(15), PC_LY: U(16) });
 
-    /*EXTRA_BINDINGS*/
+    // ---- cosmology (srkit-flrw): flat matter-plus-Lambda universe seen from inside ----
+    // Times in years since the Big Bang, lengths in light-years; comoving lengths are proper lengths today.
+    // SRKit.flrw is the Planck 2018 universe; SRKit.flrw.cosmology(h0PerYear, omegaM) makes another.
+    function cosmology(h0PerYear = x.flrw_planck_2018(0), omegaM = x.flrw_planck_2018(1)) {
+      const f = (code, a = 0, b = 0, c = 0) => { calls++; return x.flrw(code, h0PerYear, omegaM, a, b, c); };
+      return {
+        h0: h0PerYear, omegaM,
+        age: () => f(0), scaleFactor: (t) => f(1, t), timeAtScaleFactor: (a) => f(2, a), hubble: (t) => f(3, t),
+        conformalTime: (t) => f(4, t), conformalTimeLimit: () => f(5),
+        eventHorizon: (t) => f(6, t), eventHorizonProper: (t) => f(7, t), particleHorizon: (t) => f(8, t), particleHorizonProper: (t) => f(9, t),
+        /* how far (comoving) light sent at t can ever get; and the last time to signal a target, or to signal it and hear back: null if already too late */
+        reach: (t) => f(10, t), lastContactTime: (chi) => nn(f(11, chi)), lastReplyTime: (chi) => nn(f(12, chi)),
+        /* light cones in an expanding universe: null if the light never arrives */
+        lightArrivalTime: (tEmitted, chi) => nn(f(13, tEmitted, chi)), lightEmissionTime: (tReceived, chi) => nn(f(14, tReceived, chi)),
+        comovingDistance: (tFrom, tTo) => f(15, tFrom, tTo), lookbackTime: (z) => f(16, z), timeAtRedshift: (z) => f(17, z), redshiftBetween: (tEmitted, tReceived) => f(18, tEmitted, tReceived),
+        /* Hubble drag: a coasting body's gamma beta falls as 1 / a; a rocket's gamma saturates where thrust balances drag */
+        coastingProperVelocity: (u, tFrom, tTo) => f(19, u, tFrom, tTo), dragLimitedGamma: (alpha) => f(20, alpha),
+        hLambda: () => f(21), deSitterHorizon: () => f(22), deSitterTemperature: () => f(23),
+        cmbTemperature: (t, tCmb0 = 2.7255) => f(24, t, tCmb0), cmbCrossoverTime: (tCmb0 = 2.7255) => f(25, tCmb0),
+        reachMass: (t) => f(26, t), reachableShare: (t) => f(27, t),
+      };
+    }
+    const flrw = Object.freeze(Object.assign(cosmology(), { cosmology, fromKmSMpc: (h0KmSMpc, omegaM) => cosmology(h0KmSMpc * 1e3 / (1e6 * units.PC) * units.YEAR, omegaM) }));
+
+    /*GR_BINDINGS*/
 
     return Object.freeze({
       info: Object.freeze({ backend: 'srkit-wasm', version: META.version, abi: ABI, sha256: META.sha256, bytes: META.bytes || bytes.length }),
       calls: () => calls, units, seg, wl, Worldline, plan, trip, orbit, optics, rocket, kepler,
       time: Object.freeze(Object.assign(exact(384), { u384: exact(384), u512: exact(512) })),
-      /*EXTRA_EXPORTS*/
+      flrw, /*GR_EXPORT*/
       raw: x, create,
     });
   }

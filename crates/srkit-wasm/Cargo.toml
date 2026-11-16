@@ -11,6 +11,6 @@ repository.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-srkit-core.workspace = true
+srkit-core = { workspace = true, features = ["alloc"] }
 srkit-flrw.workspace = true
 srkit-gr.workspace = true
