@@ -372,3 +372,43 @@ fn rindler_horizon_hides_what_falls_behind() {
     assert_eq!(buf.view().recv(after), f64::INFINITY);
     assert!(frames::radar(&buf.view(), after).tau_recv.is_infinite());
 }
+
+#[test]
+fn a_burn_stays_consistent_towards_burn_out() {
+    // A photon rocket from rest at 1 per unit time: all the mass is gone at proper time 1, which takes for ever
+    // in coordinate time. Late on, the last 1e-15 of proper time spans more than everything before it, so the
+    // state has to be resolved in the mass fraction, not in proper time.
+    let seg =
+        Segment::Burn(Burn::new(0.0, f64::INFINITY, Vec3::ZERO, Vec3::X, 0.0, 1.0, 1.0).unwrap());
+    let mut last = seg.at(0.0);
+    for k in 1..=300 {
+        let t = 0.1 * k as f64;
+        let s = seg.at(t);
+        // the velocity is the derivative of the position, at every epoch
+        let h = 1e-5 * t.max(1.0);
+        let numeric = (seg.at(t + h).x.x - seg.at(t - h).x.x) / (2.0 * h);
+        assert!(
+            (numeric - s.v.x).abs() < 1e-6,
+            "t = {t}: dx/dt {numeric} against v {}",
+            s.v.x
+        );
+        // (past rapidity 19 the speed is 1 to the last digit of a double; the rapidity itself keeps growing)
+        assert!(s.x.x > last.x.x && s.v.x >= last.v.x && s.v.x <= 1.0 && s.x.x < t);
+        last = s;
+    }
+    // a light cone found far along the burn lies on the cone
+    let event = Event::new(30.0, Vec3::new(5.0, 5.0, 0.0));
+    let ts = seg.send(event, f64::NEG_INFINITY, f64::INFINITY).unwrap();
+    assert!(
+        (event.t - ts - seg.at(ts).x.dist(event.x)).abs() < 1e-10,
+        "off the cone by {}",
+        event.t - ts - seg.at(ts).x.dist(event.x)
+    );
+    // a rocket with a slower exhaust burns out in finite coordinate time, and is held there afterwards
+    let slow =
+        Segment::Burn(Burn::new(0.0, f64::INFINITY, Vec3::ZERO, Vec3::X, 0.0, 1.0, 0.5).unwrap());
+    let (a, b) = (slow.at(1e3), slow.at(1e6));
+    assert!(a.x.x.is_finite() && a.x == b.x && (slow.dtau(1e6) - 0.5).abs() < 1e-12);
+    // before its start a burn continues backwards, heavier and slower
+    assert!(seg.dtau(-0.5) < 0.0 && seg.at(-0.5).v.x < 0.0);
+}

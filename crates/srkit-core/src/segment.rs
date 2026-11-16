@@ -355,35 +355,78 @@ impl Burn {
             -libm::expm1(p * l) / p
         }
     }
-    /// Coordinate time and distance along `n` covered in proper time `s`, and the rapidity then.
-    fn at_s(&self, s: f64) -> (f64, f64, f64) {
-        let l = libm::log1p(-s / self.t_burn);
+    /// Coordinate time and distance along `n` covered, and the rapidity, where `l = ln(m / m0)` is the log of
+    /// the mass fraction left (zero at the start, falling as the burn goes on).
+    fn at_l(&self, l: f64) -> (f64, f64, f64) {
         let k = self.sigma * self.w;
         let v = libm::exp(self.phi0) * self.t_burn * Self::power_integral(1.0 - k, l);
         let u = libm::exp(-self.phi0) * self.t_burn * Self::power_integral(1.0 + k, l);
         (0.5 * (u + v), 0.5 * (v - u), self.phi0 - k * l)
     }
-    /// Proper time elapsed at coordinate time `t`.
-    fn s_at(&self, t: f64) -> f64 {
+    /// The same after proper time `s`.
+    fn at_s(&self, s: f64) -> (f64, f64, f64) {
+        self.at_l(libm::log1p(-s / self.t_burn))
+    }
+    /// `-ln(m / m0)` at coordinate time `t`: how many e-folds of mass have been burned.
+    ///
+    /// The inverse is taken in this variable and not in proper time, because near burn-out proper time stops
+    /// resolving the state: the last 1e-15 of the burn can span more coordinate time than all that went before.
+    /// `t` increases with `m`, with slope `cosh(phi) t_burn e^(-m)`, so a bracket and Newton's method find it.
+    /// With an exhaust slower than light the coordinate time to burn-out is finite; later times return the
+    /// state at burn-out (700 e-folds, where the mass fraction underflows).
+    fn m_at(&self, t: f64) -> f64 {
         let dt = t - self.t0;
-        if dt <= 0.0 || dt.is_nan() {
+        if dt == 0.0 || dt.is_nan() {
             return if dt == 0.0 { 0.0 } else { f64::NAN };
         }
-        // dt/ds = cosh(phi) >= 1, so s <= dt; and s stays below the burn-out time.
-        let top = self.t_burn * (1.0 - f64::EPSILON);
-        let hi = dt.min(top);
-        if self.at_s(hi).0 <= dt {
-            return hi;
+        const M_MAX: f64 = 700.0;
+        let f = |m: f64| {
+            let (t_m, _, phi) = self.at_l(-m);
+            (t_m - dt, libm::cosh(phi) * self.t_burn * libm::exp(-m))
+        };
+        // bracket the root by doubling away from the start, forwards or backwards in time
+        let (mut lo, mut hi) = (0.0, 0.0);
+        let mut step = 1.0;
+        if dt > 0.0 {
+            loop {
+                hi = lo + step;
+                if hi >= M_MAX {
+                    hi = M_MAX;
+                    if f(hi).0 < 0.0 {
+                        return M_MAX;
+                    }
+                    break;
+                }
+                if f(hi).0 >= 0.0 {
+                    break;
+                }
+                lo = hi;
+                step *= 2.0;
+            }
+        } else {
+            loop {
+                lo = hi - step;
+                if lo <= -M_MAX {
+                    lo = -M_MAX;
+                    if f(lo).0 > 0.0 {
+                        return -M_MAX;
+                    }
+                    break;
+                }
+                if f(lo).0 <= 0.0 {
+                    break;
+                }
+                hi = lo;
+                step *= 2.0;
+            }
         }
-        newton(
-            |s| {
-                let (t_s, _, phi) = self.at_s(s);
-                (t_s - dt, libm::cosh(phi))
-            },
-            0.0,
-            hi,
-            dt / libm::cosh(self.phi0),
-        )
+        // first guess: the burn's first moments, where s = dt / cosh(phi0)
+        let s0 = (dt / libm::cosh(self.phi0) / self.t_burn).min(0.999);
+        newton(f, lo, hi, -libm::log1p(-s0))
+    }
+    /// Proper time elapsed at coordinate time `t`.
+    fn s_at(&self, t: f64) -> f64 {
+        -self.t_burn * libm::expm1(-self.m_at(t))
     }
     /// The fraction of the starting mass left after proper time `s`.
     pub fn mass_fraction(&self, s: f64) -> f64 {
@@ -542,7 +585,7 @@ impl Segment {
                 State { x, v }
             }
             Self::Burn(g) => {
-                let (_, dx, phi) = g.at_s(g.s_at(t));
+                let (_, dx, phi) = g.at_l(-g.m_at(t));
                 State {
                     x: g.p0 + g.n * dx,
                     v: g.n * libm::tanh(phi),

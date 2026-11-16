@@ -1,6 +1,6 @@
 [package]
 name = "srkit-log"
-description = "SRKit: placeholder"
+description = "A causal event log: events are appended where and when they happen, and each receiver reads them in the order their light arrives"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,4 +9,6 @@ repository.workspace = true
 
 [dependencies]
 srkit-core.workspace = true
-libm.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

@@ -1275,6 +1275,43 @@ exact_time!(
     time512_classify
 );
 
+// ---------------------------------------------------------------------------------------------- benchmark
+
+/// The clock-width benchmark (question R23.8), run inside the module so that the cost measured is the
+/// arithmetic and not the crossing: `n` rounds of advancing a time by a tick, taking a difference, comparing,
+/// reducing to a phase and making an exact arrival check, on a 384-bit (`width = 384`) or 512-bit clock.
+/// Returns a checksum.
+#[no_mangle]
+pub extern "C" fn srkit_bench_clock(width: u32, n: u32) -> f64 {
+    fn run<const N: usize>(n: u32) -> f64 {
+        let Ok(epoch) = Timestamp::<N>::from_decimal("3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000") else {
+            return f64::NAN;
+        };
+        let tick = Duration::<N>::from_unsigned_millis(1);
+        let dx = GridVec::new(40_175_000_000_000_000, -3_000_000_000, 77);
+        let Ok(arrival) = causal::first_arrival(epoch, dx) else {
+            return f64::NAN;
+        };
+        let (mut t, mut sum) = (epoch, 0u64);
+        for _ in 0..n {
+            let Ok(next) = t.checked_add(tick) else {
+                return f64::NAN;
+            };
+            t = next;
+            let since = t.signed_duration_since(epoch).magnitude_millis().digits()[0];
+            let phase = t.modulo_millis(31_557_600_000).unwrap_or(0);
+            let hit = causal::arrived(epoch, if t > arrival { t } else { arrival }, dx);
+            sum = sum.wrapping_add(since ^ phase).wrapping_add(u64::from(hit));
+        }
+        (sum % (1 << 52)) as f64
+    }
+    match width {
+        384 => run::<6>(n),
+        512 => run::<8>(n),
+        _ => f64::NAN,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
