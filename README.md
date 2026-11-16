@@ -4,7 +4,7 @@ Special relativity in 3+1 Minkowski spacetime from closed forms: piecewise-analy
 
 It is the engine for *The Special Relativity Game* and is written to stand alone. The plan it follows is [`docs/engine/spacetime-package-plan.md`](../docs/engine/spacetime-package-plan.md). It lives in this repository for now and is laid out to move to its own (R71.7): nothing under `srkit/` depends on the game.
 
-**Status: first complete version, 0.2.0, not published.** The licence (R24.6), the name (R24.8) and the public repository (R24.9) are open questions, so every crate is `publish = false` and there is no licence file. Code and text are AI-generated (Claude, building on a first core by Codex); see the generated-content note at the end.
+**Status: first complete version, 0.2.0, not published.** The repository it moves to exists (`TonyXTYan/SRKit`, R71.7); the licence (R24.6) is still open, so every crate is `publish = false` and there is no licence file. Code and text are AI-generated (Claude, building on a first core by Codex); see the generated-content note at the end.
 
 ## The crates
 
@@ -39,7 +39,7 @@ It is the engine for *The Special Relativity Game* and is written to stand alone
 
 **Seeing** ([`optics.rs`](crates/srkit-core/src/optics.rs), [`kinematics.rs`](crates/srkit-core/src/kinematics.rs), [`frames.rs`](crates/srkit-core/src/frames.rs)). Aberration and Doppler in a ship's axes, the rate a distant clock appears to run, boosts by a rapidity vector, radar and light-cone coordinates of an event for any observer, diffraction and link budgets. [`rindler.rs`](crates/srkit-core/src/rindler.rs): the horizon of an accelerating ship and the last moment a signal from a given place can still catch it.
 
-**Exact time** ([`time.rs`](crates/srkit-core/src/time.rs), [`causal.rs`](crates/srkit-core/src/causal.rs)). Stored time is an unsigned count of milliseconds in 384 or 512 bits, with checked arithmetic and integer modular phase. Causal decisions are made in integers: with positions rounded to a one-metre grid, "has this signal arrived by tick n?" is `(c·Δt)² ≥ 10⁶·|Δx|²`, which holds or fails with no rounding. A moving receiver's arrival is found in floating point and then settled to the first tick that passes the exact check. This is the "exact predicates, inexact constructions" rule of computational geometry (plan §3.1).
+**Exact time** ([`time.rs`](crates/srkit-core/src/time.rs), [`causal.rs`](crates/srkit-core/src/causal.rs)). Stored time is an unsigned count of ticks in 384, 512 or 1,024 bits, with checked arithmetic and integer modular phase. The game's tick is a millisecond on a metre grid; `causal::Resolution` names others (a microsecond, or a nanosecond on a millimetre grid) for the `_at` forms of the exact checks. Causal decisions are made in integers: with positions rounded to a one-metre grid, "has this signal arrived by tick n?" is `(c·Δt)² ≥ 10⁶·|Δx|²`, which holds or fails with no rounding. A moving receiver's arrival is found in floating point and then settled to the first tick that passes the exact check. This is the "exact predicates, inexact constructions" rule of computational geometry (plan §3.1).
 
 ## Build and test
 
@@ -51,7 +51,7 @@ cargo test --workspace --release --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo fmt --all -- --check
 cargo run --example trip                        # a 1 g ride to Proxima, start to finish
-cargo run --release --example clock_widths      # U384 against U512
+cargo run --release --example clock_widths      # U384, U512 and U1024 at ms, us and ns ticks
 ```
 
 The JavaScript build (from the repository root; Python 3 and Node):
@@ -60,7 +60,7 @@ The JavaScript build (from the repository root; Python 3 and Node):
 python3 -I srkit/tools/build_js.py              # srkit/dist/srkit.js, srkit.wasm, srkit.d.ts
 node --expose-gc srkit/tools/test_js.js         # the binding's own tests
 node srkit/tools/bits.js                        # native and wasm32 give the same bits
-node srkit/tools/bench_clocks.js                # U384 against U512 in WebAssembly
+node srkit/tools/bench_clocks.js                # the same clocks in WebAssembly
 ```
 
 One script runs all of the above, and with `--apps` the two applications' checks as well:
@@ -107,9 +107,10 @@ SRKit.time.arrived('3' + '0'.repeat(110), '3' + '0'.repeat(98) + '134009348401',
 
 ## How it is checked
 
-197 Rust tests (core 41, cosmology 41, gravity 50, event log 8, diagrams 54, binding 3), 951 checks of the JavaScript binding and 154 of the Python binding. What they are:
+201 Rust tests (core 45, cosmology 41, gravity 50, event log 8, diagrams 54, binding 3), 951 checks of the JavaScript binding and 154 of the Python binding. What they are:
 
 - **Golden vectors.** `tools/golden_core.py` computes 610 cases from their textbook formulas (or a quadrature, or a root found by mpmath) at 60 significant digits, sharing no code with the crate. `tests/golden.rs` holds each family to a stated relative tolerance. Measured worst errors: 1e-15 to 5e-15 for segments, rides, optics, boosts, burns and Kepler's equation; 1e-11 where the input is a velocity near c; 6e-12 for reach (its iteration stops at 1e-12 by design).
+- **Third parties.** The cosmology is cross-checked against astropy and the Kerr orbits against KerrGeoPy (agreement to 1e-9; `crates/srkit-gr/README.md`).
 - **The physics oracle.** `tools/physics-checks/oracle.csv` is the project's table of reference numbers. `srkit-core` recomputes 47 of its rows through the public API, `srkit-flrw` and `srkit-gr` the rows that are theirs. Rows that are game design are left to `oracle_check.py`, which still reproduces every row.
 - **Properties** (proptest): proper time inverts; nothing outruns light; velocity is the derivative of position; light-cone roots lie on the cone; the interval is invariant under boosts; steered thrust holds its proper acceleration and agrees with the straight form when aligned; burns obey the rocket equation; itineraries join in position and velocity and end on their target; the event log gives one history however it is read.
 - **Exact causality.** On the oracle's adversarial test (arrivals a hair after a tick, DT-14), `ceil()` of the floating-point answer is a tick early 2,678 times in 100,000; the settled tick is never early and never late.
@@ -119,7 +120,7 @@ SRKit.time.arrived('3' + '0'.repeat(110), '3' + '0'.repeat(98) + '134009348401',
 
 Every transcendental goes through the pure-Rust `libm`; there is no `unsafe` outside the binding crates' export attributes, no threads, no hash-map iteration and no fused multiply-add. One build therefore gives the same bits on any IEEE 754 platform, and the WebAssembly build gives the same bits in every browser, which JavaScript's own `Math` does not promise.
 
-`tools/bits.js` checks this where it can: it runs a fixed list of calls natively and through the WebAssembly build and compares bit patterns. On x86-64 the two agree on every result. `srkit-flrw` pins 40 of its results to the bit in a test.
+`tools/bits.js` checks this where it can (run it on an aarch64 machine to close the gap below; it needs only `cargo` and Node): it runs a fixed list of calls natively and through the WebAssembly build and compares bit patterns. On x86-64 the two agree on every result. `srkit-flrw` pins 40 of its results to the bit in a test.
 
 Not yet done from the plan's contract (§3): the same comparison on aarch64, a pinned golden file of bit patterns in CI for every crate, and an error bound in units in the last place stated for each function. The golden tests here compare to a tolerance. Until those are in place the contract is not frozen and a release is 0.x.
 

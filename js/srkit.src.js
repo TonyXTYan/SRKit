@@ -24,7 +24,7 @@
   'use strict';
   const EMBEDDED = '/*WASM_BASE64*/';
   const META = { version: '/*VERSION*/', sha256: '/*WASM_SHA256*/', bytes: /*WASM_BYTES*/0 };
-  const ABI = 3, SEG = 21, HEADER = 24, PIECE = 24;
+  const ABI = 4, SEG = 21, HEADER = 24, PIECE = 24;
   const KIND = { rest: 0, lin: 1, hyp: 2, circ: 3, null: 4, steer: 5, burn: 6 };
   const KIND_NAME = ['rest', 'lin', 'hyp', 'circ', 'null', 'steer', 'burn'];
   const PHASE_NAME = ['rest', 'boost', 'coast', 'brake', 'orbit', 'jump'];

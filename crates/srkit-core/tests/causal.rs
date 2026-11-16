@@ -142,3 +142,142 @@ proptest! {
         prop_assert_eq!(causal::settle_arrival(e, estimate, 16, |_| Ok(d)).unwrap(), exact);
     }
 }
+
+mod finer_ticks {
+    //! R71.4: a 1,024-bit clock with microsecond and nanosecond ticks.
+    use proptest::prelude::*;
+    use srkit_core::{
+        causal::{self, Causal, GridVec, Resolution},
+        time::{Duration1024, Duration512, Time1024, Time384, Time512},
+    };
+
+    const C: i128 = 299_792_458;
+
+    #[test]
+    fn a_nanosecond_needs_a_millimetre() {
+        let (ms, us, ns) = (
+            Resolution::MILLISECOND_METRE,
+            Resolution::MICROSECOND_METRE,
+            Resolution::NANOSECOND_MILLIMETRE,
+        );
+        assert!((ms.light_steps_per_tick() - 299_792.458).abs() < 1e-9);
+        assert!((us.light_steps_per_tick() - 299.792458).abs() < 1e-12);
+        assert!((ns.light_steps_per_tick() - 299.792458).abs() < 1e-12);
+        // a nanosecond tick on a metre grid: light covers less than one grid step a tick, so rounding a
+        // position to the grid moves an arrival by more than a tick
+        assert!(
+            Resolution::new(1_000_000_000, 1)
+                .unwrap()
+                .light_steps_per_tick()
+                < 1.0
+        );
+        assert!(Resolution::new(0, 1).is_err() && Resolution::new(1, 0).is_err());
+        assert!(
+            Resolution::new(10_u64.pow(13), 1).is_err() && Resolution::new(1, 10_000_000).is_err()
+        );
+    }
+
+    #[test]
+    fn one_light_second_at_every_resolution() {
+        // metres: 1e6 microseconds, and one metre more is one tick more (light crosses 300 m a microsecond: +1)
+        let us = Resolution::MICROSECOND_METRE;
+        assert_eq!(
+            causal::light_ticks_at::<16>(us, GridVec::new(C, 0, 0)).unwrap(),
+            Duration1024::from_unsigned_ticks(1_000_000)
+        );
+        assert_eq!(
+            causal::light_ticks_at::<16>(us, GridVec::new(C + 1, 0, 0)).unwrap(),
+            Duration1024::from_unsigned_ticks(1_000_001)
+        );
+        // millimetres: 1e9 nanoseconds
+        let ns = Resolution::NANOSECOND_MILLIMETRE;
+        let one = GridVec::new(C * 1000, 0, 0);
+        assert_eq!(
+            causal::light_ticks_at::<16>(ns, one).unwrap(),
+            Duration1024::from_unsigned_ticks(1_000_000_000)
+        );
+        assert_eq!(
+            causal::light_ticks_at::<16>(ns, GridVec::new(C * 1000 + 1, 0, 0)).unwrap(),
+            Duration1024::from_unsigned_ticks(1_000_000_001)
+        );
+        assert_eq!(
+            causal::classify_at(ns, Duration1024::from_unsigned_ticks(1_000_000_000), one),
+            Causal::Null
+        );
+        assert_eq!(
+            causal::classify_at(ns, Duration1024::from_unsigned_ticks(999_999_999), one),
+            Causal::Spacelike
+        );
+        // a 3-4-5 triangle of light-seconds in millimetres
+        let d = GridVec::new(3 * C * 1000, -4 * C * 1000, 0);
+        assert_eq!(
+            causal::light_ticks_at::<16>(ns, d).unwrap(),
+            Duration1024::from_unsigned_ticks(5_000_000_000)
+        );
+        // the millisecond functions are the millisecond-metre resolution
+        let ms = Resolution::MILLISECOND_METRE;
+        let x = GridVec::new(123_456_789_012, -98_765_432_109, 5_555_555_555);
+        assert_eq!(
+            causal::light_ticks_at::<8>(ms, x).unwrap(),
+            causal::light_ticks::<8>(x).unwrap()
+        );
+    }
+
+    #[test]
+    fn what_each_width_reaches() {
+        // 1e100 years in nanoseconds is 3.16e116: 388 bits. It overflows 384 bits and fits 512 and 1,024.
+        let ns_in_1e100_years = format!("31557600{}", "0".repeat(109));
+        assert!(Time384::from_decimal(&ns_in_1e100_years).is_err());
+        assert!(Time512::from_decimal(&ns_in_1e100_years).is_ok());
+        // 1,024 bits at a nanosecond: an epoch of 1e290 years, exact to the tick, across the observable universe
+        let epoch = Time1024::from_decimal(&format!("31557600{}", "0".repeat(299))).unwrap();
+        let ns = Resolution::NANOSECOND_MILLIMETRE;
+        let far = GridVec::new(880_000_000_000_000_000_000_000_000_000, 3, -7); // 8.8e26 m in mm
+        let arrival = causal::first_arrival_at(ns, epoch, far).unwrap();
+        assert!(causal::arrived_at(ns, epoch, arrival, far));
+        assert!(!causal::arrived_at(
+            ns,
+            epoch,
+            arrival
+                .checked_sub(Duration1024::from_unsigned_ticks(1))
+                .unwrap(),
+            far
+        ));
+        assert_eq!(epoch.to_string().len(), 307);
+        // and the same check in 512 bits at 1e100 years
+        let e512 = Time512::from_decimal(&ns_in_1e100_years).unwrap();
+        let a512 = causal::first_arrival_at(ns, e512, far).unwrap();
+        assert_eq!(
+            a512.signed_duration_since(e512).to_string(),
+            arrival.signed_duration_since(epoch).to_string()
+        );
+        assert!(!causal::arrived_at(
+            ns,
+            e512,
+            a512.checked_sub(Duration512::from_unsigned_ticks(1))
+                .unwrap(),
+            far
+        ));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(2000))]
+
+        /// At every resolution `light_ticks_at` is the smallest tick count that passes the exact check, and a
+        /// moving receiver's arrival settles on the first tick that passes.
+        #[test]
+        fn minimal_at_every_resolution(x in any::<i64>(), y in any::<i64>(), z in any::<i64>(), scale in 0u32..50, which in 0usize..3, off in -5i64..5) {
+            let res = [Resolution::MILLISECOND_METRE, Resolution::MICROSECOND_METRE, Resolution::NANOSECOND_MILLIMETRE][which];
+            let d = GridVec::new((x as i128) << scale, (y as i128) << scale, (z as i128) << scale);
+            let e = Time1024::from_decimal(&format!("7{}", "0".repeat(250))).unwrap();
+            let ticks = causal::light_ticks_at::<16>(res, d).unwrap();
+            let arrival = e.checked_add(ticks).unwrap();
+            prop_assert!(causal::arrived_at(res, e, arrival, d));
+            if ticks != Duration1024::ZERO {
+                prop_assert!(!causal::arrived_at(res, e, arrival.checked_sub(Duration1024::from_unsigned_ticks(1)).unwrap(), d));
+            }
+            let estimate = if off >= 0 { arrival.checked_add(Duration1024::from_millis(off)).unwrap() } else { arrival.checked_sub(Duration1024::from_millis(-off)).unwrap_or(e) };
+            prop_assert_eq!(causal::settle_arrival_at(res, e, estimate.max(e), 16, |_| Ok(d)).unwrap(), arrival);
+        }
+    }
+}

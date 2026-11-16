@@ -92,8 +92,14 @@ cargo build -p srkit-gr --target wasm32-unknown-unknown --release
   were run through a release build on x86-64 and through the `wasm32-unknown-unknown` build under Node 22
   (V8); every result was bit-identical.
 
-Not yet done: the cross-checks against EinsteinPy and KerrGeoPy in CI that the plan calls for (the references
-here are mpmath only), and golden vectors run automatically on aarch64 and wasm32.
+**Against KerrGeoPy** (the Black Hole Perturbation Toolkit's analytic Kerr orbits; `tools/crosscheck_kerrgeopy.py`,
+run by hand with `pip install kerrgeopy`): the ISCO radius, the specific energy and angular momentum, `dt/dτ` and the
+angular velocity of every stable orbit in the reference file agree to better than 1e-9, which is KerrGeoPy's own
+accuracy (it works in binary64 with root finders and elliptic integrals). Within 1e-10 of the extremal hole KerrGeoPy
+is the less accurate of the two: at `a* = 1 − 10⁻¹²` and `1 − 10⁻¹⁴` its ISCO is off by 1e-8 and 3e-7, where an
+80-digit root of the ISCO condition agrees with this crate to 2e-16.
+
+Not yet done: a cross-check against EinsteinPy, and either cross-check in CI.
 
 ## Known limits
 

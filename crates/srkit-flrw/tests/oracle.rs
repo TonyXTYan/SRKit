@@ -18,13 +18,14 @@ const ORACLE: &str = include_str!(concat!(
     "/../../../tools/physics-checks/oracle.csv"
 ));
 
-/// Solar mass in kilograms, as `oracle_check.py` has it.
-const M_SUN: f64 = 1.98847e30;
+/// Solar mass in kilograms, as `oracle_check.py` has it since R71.10: the IAU nominal GM☉ over CODATA G.
+const M_SUN: f64 = srkit_core::units::M_SUN;
 
-/// Rows whose stated value is quoted with too few digits to meet its own 1% tolerance. `oracle_check.py`
+/// None since R71.10 (16 Nov 2026), when SR-68, DT-18 and DT-29 were given a third figure. Before that:
+/// rows whose stated value is quoted with too few digits to meet its own 1% tolerance. `oracle_check.py`
 /// reports the same three as ROUNDED: 1.2287e30 against 1.2e30, 1.2273e12 yr against 1.2e12 yr, and
 /// 1.2455e13 yr against 1.2e13 yr.
-const ROUNDED: [&str; 3] = ["SR-68", "DT-18", "DT-29"];
+const ROUNDED: [&str; 0] = [];
 
 /// Number of significant figures a stated value is quoted with (the rule in `oracle_check.py`).
 fn significant_figures(stated: &str) -> usize {
@@ -144,7 +145,7 @@ fn agrees_with_oracle_check_py_to_its_printed_digits() {
         ("DT-16", 1.2403e30),
         ("DT-17", 69.293),
         ("DT-18", 1.2273e12),
-        ("DT-23", 8.4982e111),
+        ("DT-23", 8.4979e111), // 8.4982e111 before R71.10 moved the solar mass to GM☉ / G
         ("DT-25", 1.5457e-15),
         ("DT-26", 5.7045e-6),
         ("DT-27", 13.455),

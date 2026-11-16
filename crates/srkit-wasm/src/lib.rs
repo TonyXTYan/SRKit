@@ -46,7 +46,7 @@ use srkit_core::{
 };
 
 /// Bumped whenever an export's meaning or a buffer layout changes.
-pub const ABI_VERSION: u32 = 3;
+pub const ABI_VERSION: u32 = 4;
 /// Slots a segment occupies in the input buffer.
 pub const SEG_SLOTS: usize = 21;
 const IN_SLOTS: usize = 64;
@@ -1418,19 +1418,29 @@ pub extern "C" fn gr(code: u32, a: f64, b: f64, c: f64, d: f64) -> f64 {
 
 // ---------------------------------------------------------------------------------------------- benchmark
 
-/// The clock-width benchmark (question R23.8), run inside the module so that the cost measured is the
-/// arithmetic and not the crossing: `n` rounds of advancing a time by a tick, taking a difference, comparing,
-/// reducing to a phase and making an exact arrival check, on a 384-bit (`width = 384`) or 512-bit clock.
-/// Returns a checksum.
+/// The clock-width benchmark (questions R23.8 and R71.4), run inside the module so that the cost measured is
+/// the arithmetic and not the crossing: `n` rounds of advancing a time by a tick, taking a difference,
+/// comparing, reducing to a yearly phase and making an exact arrival check, on a 384-, 512- or 1,024-bit clock
+/// (`width`) with `ticks_per_second` ticks to the second on a grid of `grid_per_metre` steps to the metre.
+/// Returns a checksum, or NaN for a width or resolution it does not have.
 #[no_mangle]
-pub extern "C" fn srkit_bench_clock(width: u32, n: u32) -> f64 {
-    fn run<const N: usize>(n: u32) -> f64 {
-        let Ok(epoch) = Timestamp::<N>::from_decimal("3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000") else {
+pub extern "C" fn srkit_bench_clock(
+    width: u32,
+    ticks_per_second: f64,
+    grid_per_metre: f64,
+    n: u32,
+) -> f64 {
+    use srkit_core::causal::Resolution;
+    fn run<const N: usize>(res: Resolution, n: u32) -> f64 {
+        // 3e107 ticks: 1e97 years at a millisecond, 1e91 at a nanosecond; within every width
+        let Ok(epoch) = Timestamp::<N>::from_decimal("300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000") else {
             return f64::NAN;
         };
-        let tick = Duration::<N>::from_unsigned_millis(1);
-        let dx = GridVec::new(40_175_000_000_000_000, -3_000_000_000, 77);
-        let Ok(arrival) = causal::first_arrival(epoch, dx) else {
+        let tick = Duration::<N>::from_unsigned_ticks(1);
+        let g = res.grid_per_metre() as i128;
+        let dx = GridVec::new(40_175_000_000_000_000 * g, -3_000_000_000 * g, 77 * g);
+        let year = 31_557_600 * res.ticks_per_second();
+        let Ok(arrival) = causal::first_arrival_at(res, epoch, dx) else {
             return f64::NAN;
         };
         let (mut t, mut sum) = (epoch, 0u64);
@@ -1440,15 +1450,19 @@ pub extern "C" fn srkit_bench_clock(width: u32, n: u32) -> f64 {
             };
             t = next;
             let since = t.signed_duration_since(epoch).magnitude_millis().digits()[0];
-            let phase = t.modulo_millis(31_557_600_000).unwrap_or(0);
-            let hit = causal::arrived(epoch, if t > arrival { t } else { arrival }, dx);
+            let phase = t.modulo_millis(year).unwrap_or(0);
+            let hit = causal::arrived_at(res, epoch, if t > arrival { t } else { arrival }, dx);
             sum = sum.wrapping_add(since ^ phase).wrapping_add(u64::from(hit));
         }
         (sum % (1 << 52)) as f64
     }
+    let Ok(res) = Resolution::new(ticks_per_second as u64, grid_per_metre as u64) else {
+        return f64::NAN;
+    };
     match width {
-        384 => run::<6>(n),
-        512 => run::<8>(n),
+        384 => run::<6>(res, n),
+        512 => run::<8>(res, n),
+        1024 => run::<16>(res, n),
         _ => f64::NAN,
     }
 }

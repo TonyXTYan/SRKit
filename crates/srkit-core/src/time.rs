@@ -30,6 +30,11 @@ pub type Time512 = Timestamp<8>;
 pub type Duration384 = Duration<6>;
 /// Signed duration with a U512 magnitude.
 pub type Duration512 = Duration<8>;
+/// A 1,024-bit timestamp, for trials of a finer tick (R71.4). At one nanosecond a tick it reaches 5.7e291 years;
+/// 512 bits at a nanosecond reach 4.2e137 years, and 384 bits fall just short of 1e100 years.
+pub type Time1024 = Timestamp<16>;
+/// Signed duration with a U1024 magnitude.
+pub type Duration1024 = Duration<16>;
 
 /// A signed millisecond difference, with a full-width unsigned magnitude.
 ///
@@ -57,6 +62,13 @@ impl<const N: usize> Timestamp<N> {
     pub const MAX: Self = Self { millis: BUint::MAX };
 
     /// Construct an exact timestamp from a 64-bit count of milliseconds.
+    /// Construct from a 64-bit count of ticks. The type counts ticks and does not know their length: the
+    /// game's tick is a millisecond, which the `*_millis` and `local_seconds` methods assume, and
+    /// [`crate::causal::Resolution`] names other lengths for the exact causal checks.
+    pub const fn from_ticks(ticks: u64) -> Self {
+        Self::from_millis(ticks)
+    }
+
     pub const fn from_millis(millis: u64) -> Self {
         Self {
             millis: BUint::from_digit(millis),
@@ -201,6 +213,11 @@ impl<const N: usize> Duration<N> {
     }
 
     /// Construct a nonnegative duration from a 64-bit millisecond count.
+    /// Construct a nonnegative duration from a 64-bit count of ticks (see [`Timestamp::from_ticks`]).
+    pub const fn from_unsigned_ticks(ticks: u64) -> Self {
+        Self::from_unsigned_millis(ticks)
+    }
+
     pub const fn from_unsigned_millis(millis: u64) -> Self {
         Self {
             negative: false,

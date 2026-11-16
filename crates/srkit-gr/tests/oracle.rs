@@ -24,13 +24,12 @@ const ORACLE: &str = include_str!(concat!(
     "/../../../tools/physics-checks/oracle.csv"
 ));
 
-/// Rows that `oracle_check.py` reports as ROUNDED, or as AMBIGUOUS with a computed value outside ±1%: the
+/// None since R71.10 (16 Nov 2026), when these nine rows were given a third figure. Before that:
+/// rows that `oracle_check.py` reports as ROUNDED, or as AMBIGUOUS with a computed value outside ±1%: the
 /// stated value has too few figures for its tolerance. Computed values, 16 Nov 2026:
 /// SR-40 42.52 (stated 43), SR-41 2.732 (2.7), SR-42 30.62 (31), SR-43 2.135 (2.1), SR-48 2.242e32 (2.2e32),
 /// SR-49 2.064e36 (2.1e36), SR-63 2.031e25 (2.0e25), SR-64 3.562e14 (3.6e14), SR-65 2665 (2700).
-const ROUNDED: &[&str] = &[
-    "SR-40", "SR-41", "SR-42", "SR-43", "SR-48", "SR-49", "SR-63", "SR-64", "SR-65",
-];
+const ROUNDED: &[&str] = &[];
 
 /// The rows this crate is responsible for.
 const COVERED: &[&str] = &[
