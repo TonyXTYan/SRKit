@@ -187,6 +187,49 @@ export interface ExactTime {
   classify(dt: Exact, dX: Vec3): 'timelike' | 'null' | 'spacelike';
 }
 
+/** A flat universe of matter and a cosmological constant, seen from inside. Times in years since the Big Bang, lengths in
+ *  light-years; comoving lengths are proper lengths today. Radiation is not included. */
+export interface Cosmology {
+  h0: number; omegaM: number;
+  age(): number; scaleFactor(t: number): number; timeAtScaleFactor(a: number): number; hubble(t: number): number;
+  conformalTime(t: number): number; conformalTimeLimit(): number;
+  eventHorizon(t: number): number; eventHorizonProper(t: number): number; particleHorizon(t: number): number; particleHorizonProper(t: number): number;
+  /** How far (comoving) light sent at t can ever get. */
+  reach(t: number): number;
+  /** The last time a signal can be sent to a target at comoving distance chi and still arrive; null if it is already too late. */
+  lastContactTime(chi: number): number | null;
+  /** The last time to send and still receive a reply. */
+  lastReplyTime(chi: number): number | null;
+  /** Light cones in an expanding universe; null if the light never arrives. */
+  lightArrivalTime(tEmitted: number, chi: number): number | null;
+  lightEmissionTime(tReceived: number, chi: number): number | null;
+  comovingDistance(tFrom: number, tTo: number): number; lookbackTime(z: number): number; timeAtRedshift(z: number): number; redshiftBetween(tEmitted: number, tReceived: number): number;
+  /** Hubble drag: gamma beta of a coasting body falls as 1 / a. */
+  coastingProperVelocity(u: number, tFrom: number, tTo: number): number;
+  /** The Lorentz factor at which a rocket's thrust (alpha per year) balances Hubble drag. */
+  dragLimitedGamma(alpha: number): number;
+  hLambda(): number; deSitterHorizon(): number;
+  /** Kelvin. */
+  deSitterTemperature(): number; cmbTemperature(t: number, tCmb0?: number): number; cmbCrossoverTime(tCmb0?: number): number;
+  /** Kilograms within reach of light sent at t. */
+  reachMass(t: number): number; reachableShare(t: number): number;
+}
+
+/** SI throughout: kg, m, s, K, W. A spin is the dimensionless a*; where a function takes only a spin, negative means a retrograde orbit. */
+export interface GravityApi {
+  /** In units of GM/c². */
+  kerrIscoRadius(spin: number): number; kerrHorizonRadius(spin: number): number;
+  kerrIscoDtDtau(spin: number): number; accretionEfficiency(spin: number): number; extractableEnergyFraction(spin: number): number;
+  zamoDtauDt(massKg: number, spin: number, r: number, polarAngle?: number): number;
+  schwarzschildRadius(massKg: number): number; staticDtauDt(massKg: number, r: number): number; circularOrbitDtDtau(massKg: number, r: number): number;
+  redshift(massKg: number, rEmitter: number, rObserver: number): number;
+  shapiroDelay(massKg: number, rEmitter: number, rReceiver: number, impactParameter: number): number;
+  deflectionAngle(massKg: number, impactParameter: number): number;
+  hawkingTemperature(massKg: number): number; hawkingPower(massKg: number): number; hawkingEntropy(massKg: number): number;
+  /** 'photons': a black body over the horizon area (the oracle's model). 'page': Page 1976, photons and gravitons. */
+  hawkingLifetime(massKg: number, model?: 'photons' | 'page'): number; hawkingMassForLifetime(seconds: number): number;
+}
+
 export interface Units {
   C: number; YEAR: number; LY: number; AU: number; PC: number; G0: number; H: number; HBAR: number; KB: number; G: number; SIGMA: number;
   L_SUN: number; R_SUN: number; GM_SUN: number; G_PER_YEAR: number; AU_LY: number; PC_LY: number;
@@ -207,10 +250,10 @@ export interface SRKitApi {
   rocket: RocketApi;
   kepler(meanAnomaly: number, e: number): number;
   time: ExactTime & { u384: ExactTime; u512: ExactTime };
-  /** Flat ΛCDM cosmology (srkit-flrw). */
-  flrw: Record<string, (...args: number[]) => number | null>;
+  /** The Planck 2018 universe (srkit-flrw); `flrw.cosmology(h0PerYear, omegaM)` makes another. */
+  flrw: Cosmology & { cosmology(h0PerYear?: number, omegaM?: number): Cosmology; fromKmSMpc(h0KmSMpc: number, omegaM: number): Cosmology };
   /** Closed-form general-relativity scalars (srkit-gr). */
-  gr: Record<string, (...args: number[]) => number | null>;
+  gr: GravityApi;
   /** The module's raw exports. */
   raw: Record<string, unknown>;
   /** Instantiate another copy from WebAssembly bytes. */

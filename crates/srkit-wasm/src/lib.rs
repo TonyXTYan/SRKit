@@ -1359,6 +1359,63 @@ pub extern "C" fn flrw_planck_2018(which: u32) -> f64 {
     }
 }
 
+// ---------------------------------------------------------------------------------------------- gravity
+
+/// One function of `srkit-gr`. SI throughout (kg, m, s, K, W); a spin is the dimensionless `a*`, and where a
+/// function takes only a spin, a negative one means a retrograde orbit. NaN outside a function's domain.
+///
+/// | Code | Function | Arguments |
+/// |---|---|---|
+/// | 0 | Kerr ISCO radius, in units of GM/c² | spin |
+/// | 1 | dt/dtau on the Kerr ISCO | spin |
+/// | 2 | accretion efficiency, 1 - E at the ISCO | spin |
+/// | 3 | Hawking temperature | mass |
+/// | 4, 14 | Hawking lifetime: photons only (black body over the horizon area); Page's photons and gravitons | mass |
+/// | 5 | Hawking power, photons only | mass |
+/// | 6 | Schwarzschild radius | mass |
+/// | 7 | dtau/dt of a static observer | mass, r |
+/// | 8 | dt/dtau on a circular orbit (Schwarzschild) | mass, r |
+/// | 9 | Shapiro delay, one way | mass, r emitter, r receiver, impact parameter |
+/// | 10 | deflection of light | mass, impact parameter |
+/// | 11 | gravitational redshift z between static observers | mass, r emitter, r observer |
+/// | 12 | Kerr outer horizon radius, in units of GM/c² | spin |
+/// | 13 | dtau/dt of a zero-angular-momentum observer (Kerr) | mass, spin, r, polar angle |
+/// | 15 | Bekenstein-Hawking entropy, J/K | mass |
+/// | 16 | mass whose photon-only lifetime is a given time | lifetime |
+/// | 17 | share of a Kerr hole's mass-energy that can be extracted | spin |
+#[no_mangle]
+pub extern "C" fn gr(code: u32, a: f64, b: f64, c: f64, d: f64) -> f64 {
+    use srkit_gr::{hawking, kerr, schwarzschild, weak_field};
+    let orbit = if a < 0.0 {
+        kerr::Orbit::Retrograde
+    } else {
+        kerr::Orbit::Prograde
+    };
+    // ratios to GM/c² do not depend on the mass; one solar mass keeps the arithmetic at ordinary sizes
+    let m = srkit_core::units::M_SUN;
+    match code {
+        0 => kerr::isco_radius(m, a.abs(), orbit) / srkit_gr::gravitational_radius(m),
+        1 => kerr::isco_dt_dtau(a.abs(), orbit),
+        2 => kerr::accretion_efficiency(a.abs(), orbit),
+        3 => hawking::temperature(a),
+        4 => hawking::lifetime(a, hawking::EmissionModel::PhotonBlackbody),
+        5 => hawking::power(a, hawking::EmissionModel::PhotonBlackbody),
+        6 => schwarzschild::schwarzschild_radius(a),
+        7 => schwarzschild::static_dtau_dt(a, b),
+        8 => schwarzschild::circular_orbit_dt_dtau(a, b),
+        9 => weak_field::shapiro_delay(a, b, c, d),
+        10 => weak_field::deflection_angle(a, b),
+        11 => schwarzschild::gravitational_redshift(a, b, c),
+        12 => kerr::outer_horizon_radius(m, a) / srkit_gr::gravitational_radius(m),
+        13 => kerr::zamo_dtau_dt(a, b, c, d),
+        14 => hawking::lifetime(a, hawking::EmissionModel::PagePhotonsGravitons),
+        15 => hawking::entropy(a),
+        16 => hawking::mass_for_lifetime(a, hawking::EmissionModel::PhotonBlackbody),
+        17 => kerr::extractable_energy_fraction(a),
+        _ => f64::NAN,
+    }
+}
+
 // ---------------------------------------------------------------------------------------------- benchmark
 
 /// The clock-width benchmark (question R23.8), run inside the module so that the cost measured is the

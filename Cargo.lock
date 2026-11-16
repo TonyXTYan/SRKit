@@ -284,6 +284,7 @@ name = "srkit-gr"
 version = "0.2.0"
 dependencies = [
  "libm",
+ "proptest",
  "srkit-core",
 ]
 

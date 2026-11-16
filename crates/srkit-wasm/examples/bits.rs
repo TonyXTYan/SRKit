@@ -132,7 +132,7 @@ fn main() {
         kepler_eccentric_anomaly(2.2, 0.6),
         black_body_luminosity(6.957e8, 5772.0),
     ]);
-    // cosmology
+    // cosmology and gravity
     let (h0, om) = (flrw_planck_2018(0), flrw_planck_2018(1));
     for (code, a, b) in [
         (0, 0.0, 0.0),
@@ -147,6 +147,19 @@ fn main() {
     ] {
         out.push(flrw(code, h0, om, a, b, 0.0));
     }
+    for (code, a) in [
+        (0, 0.0),
+        (0, 0.9),
+        (0, -0.5),
+        (1, 0.9),
+        (2, 0.9),
+        (3, 1e9),
+        (4, 1e9),
+        (12, 0.7),
+    ] {
+        out.push(gr(code, a, 0.0, 0.0, 0.0));
+    }
+    out.push(gr(9, 1.98841e30, 1.496e11, 2.279e11, 6.957e8));
     for v in out {
         println!("{:016x}", v.to_bits());
     }

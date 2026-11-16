@@ -353,13 +353,27 @@
     }
     const flrw = Object.freeze(Object.assign(cosmology(), { cosmology, fromKmSMpc: (h0KmSMpc, omegaM) => cosmology(h0KmSMpc * 1e3 / (1e6 * units.PC) * units.YEAR, omegaM) }));
 
-    /*GR_BINDINGS*/
+    // ---- gravity (srkit-gr): closed-form scalars. SI: kg, m, s, K, W; a spin is a*, negative for a retrograde orbit ----
+    const G = (code, a = 0, b = 0, c = 0, d = 0) => { calls++; return x.gr(code, a, b, c, d); };
+    const gr = Object.freeze({
+      /* Kerr, by spin alone: the innermost stable circular orbit in units of GM/c^2, a clock's rate on it, what accretion releases */
+      kerrIscoRadius: (spin) => G(0, spin), kerrIscoDtDtau: (spin) => G(1, spin), accretionEfficiency: (spin) => G(2, spin),
+      kerrHorizonRadius: (spin) => G(12, spin), extractableEnergyFraction: (spin) => G(17, spin),
+      zamoDtauDt: (massKg, spin, r, polarAngle = Math.PI / 2) => G(13, massKg, spin, r, polarAngle),
+      schwarzschildRadius: (massKg) => G(6, massKg), staticDtauDt: (massKg, r) => G(7, massKg, r), circularOrbitDtDtau: (massKg, r) => G(8, massKg, r),
+      redshift: (massKg, rEmitter, rObserver) => G(11, massKg, rEmitter, rObserver),
+      shapiroDelay: (massKg, rEmitter, rReceiver, impactParameter) => G(9, massKg, rEmitter, rReceiver, impactParameter),
+      deflectionAngle: (massKg, impactParameter) => G(10, massKg, impactParameter),
+      /* Hawking radiation. The lifetime depends on what is emitted: 'photons' (a black body over the horizon area, the oracle's model) or 'page' (Page 1976, photons and gravitons) */
+      hawkingTemperature: (massKg) => G(3, massKg), hawkingPower: (massKg) => G(5, massKg), hawkingEntropy: (massKg) => G(15, massKg),
+      hawkingLifetime: (massKg, model = 'photons') => G(model === 'page' ? 14 : 4, massKg), hawkingMassForLifetime: (seconds) => G(16, seconds),
+    });
 
     return Object.freeze({
       info: Object.freeze({ backend: 'srkit-wasm', version: META.version, abi: ABI, sha256: META.sha256, bytes: META.bytes || bytes.length }),
       calls: () => calls, units, seg, wl, Worldline, plan, trip, orbit, optics, rocket, kepler,
       time: Object.freeze(Object.assign(exact(384), { u384: exact(384), u512: exact(512) })),
-      flrw, /*GR_EXPORT*/
+      flrw, gr,
       raw: x, create,
     });
   }

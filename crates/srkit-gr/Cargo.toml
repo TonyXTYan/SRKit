@@ -1,6 +1,6 @@
 [package]
 name = "srkit-gr"
-description = "SRKit: placeholder"
+description = "Closed-form general-relativity scalars: Schwarzschild and Kerr time dilation and circular orbits, weak-field delay, deflection and clock offsets, Hawking radiation"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,3 +10,6 @@ repository.workspace = true
 [dependencies]
 srkit-core.workspace = true
 libm.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

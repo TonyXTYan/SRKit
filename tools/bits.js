@@ -28,6 +28,8 @@ x.boost(0.3, -1.1, 2, 5, 1, 2, 3); out.push(...get(0, 4));
 out.push(x.rocket_mass_ratio(3.7, 0.3), x.sail_rapidity(0.42), x.kepler_eccentric_anomaly(2.2, 0.6), x.black_body_luminosity(6.957e8, 5772));
 const h0 = x.flrw_planck_2018(0), om = x.flrw_planck_2018(1);
 for (const [code, a, b] of [[0, 0, 0], [1, 5e9, 0], [4, 13.8e9, 0], [5, 0, 0], [6, 13.8e9, 0], [11, 1e10, 0], [13, 13.8e9, 5e9], [20, g, 0], [23, 0, 0]]) out.push(x.flrw(code, h0, om, a, b, 0));
+for (const [code, a] of [[0, 0], [0, 0.9], [0, -0.5], [1, 0.9], [2, 0.9], [3, 1e9], [4, 1e9], [12, 0.7]]) out.push(x.gr(code, a, 0, 0, 0));
+out.push(x.gr(9, 1.98841e30, 1.496e11, 2.279e11, 6.957e8));
 const hex = (v) => { const b = new DataView(new ArrayBuffer(8)); b.setFloat64(0, v); return b.getBigUint64(0).toString(16).padStart(16, '0'); };
 let bad = 0;
 if (native.length !== out.length) { console.log(`FAIL the two lists differ in length: native ${native.length}, wasm ${out.length}`); bad++; }
