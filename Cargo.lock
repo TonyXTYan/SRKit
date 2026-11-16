@@ -298,8 +298,9 @@ dependencies = [
 name = "srkit-wasm"
 version = "0.2.0"
 dependencies = [
- "libm",
  "srkit-core",
+ "srkit-flrw",
+ "srkit-gr",
 ]
 
 [[package]]

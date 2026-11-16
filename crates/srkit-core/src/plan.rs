@@ -413,6 +413,9 @@ pub struct OrbitEntry {
     pub end: End,
     pub orb: OrbitElements,
     pub dphi: f64,
+    /// True when the entry started near the centre (a hop to a point behind the join, then a boost along the
+    /// tangent); false for the tangent run from outside.
+    pub from_inside: bool,
 }
 
 /// Enter a circular orbit of radius `r` at speed `beta` about `centre`, from rest at `start.x`, at proper
@@ -462,6 +465,7 @@ pub fn orbit_entry(
                 orbit: ob,
             },
             dphi,
+            from_inside: false,
         })
     } else {
         // Near the centre: the join q at angle a0, and a point s behind it on the tangent.
@@ -490,6 +494,7 @@ pub fn orbit_entry(
                 orbit: ob,
             },
             dphi,
+            from_inside: true,
         })
     }
 }

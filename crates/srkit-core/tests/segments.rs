@@ -15,7 +15,7 @@ fn unit(a: f64, b: f64) -> Vec3 {
 
 /// Segments of every kind with parameters in the ranges the game uses.
 fn any_segment() -> impl Strategy<Value = Segment> {
-    let dir = (0.0..6.28f64, -1.5..1.5f64).prop_map(|(a, b)| unit(a, b));
+    let dir = (0.0..std::f64::consts::TAU, -1.5..1.5f64).prop_map(|(a, b)| unit(a, b));
     let point =
         (-50.0..50.0f64, -50.0..50.0f64, -50.0..50.0f64).prop_map(|(x, y, z)| Vec3::new(x, y, z));
     prop_oneof![
@@ -52,7 +52,7 @@ fn any_segment() -> impl Strategy<Value = Segment> {
             point.clone(),
             0.1..40.0f64,
             0.01..0.99f64,
-            0.0..6.28f64,
+            0.0..std::f64::consts::TAU,
             -100.0..100.0f64
         )
             .prop_map(|(c, r, beta, a0, t0)| Segment::circular(
@@ -175,7 +175,7 @@ proptest! {
 
     /// A steered burn feels constant proper acceleration: the four-acceleration has magnitude alpha.
     #[test]
-    fn steered_holds_its_acceleration(v in (0.0..6.28f64, -1.5..1.5f64, 0.0..0.95f64), m in (0.0..6.28f64, -1.5..1.5f64), a in 0.05..2.0f64, s in 0.01..3.0f64) {
+    fn steered_holds_its_acceleration(v in (0.0..std::f64::consts::TAU, -1.5..1.5f64, 0.0..0.95f64), m in (0.0..std::f64::consts::TAU, -1.5..1.5f64), a in 0.05..2.0f64, s in 0.01..3.0f64) {
         let seg = Segment::Steered(Steered::new(0.0, 100.0, Vec3::ZERO, unit(v.0, v.1) * v.2, unit(m.0, m.1), a).unwrap());
         let h = 1e-4;
         let four_velocity = |tau: f64| { let st = seg.at_tau(tau); let g = 1.0 / (1.0 - st.v.norm_squared()).sqrt(); (g, st.v * g) };
