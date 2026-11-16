@@ -14,7 +14,7 @@ pub const LIGHT_YEAR: f64 = 9_460_730_472_580_800.0;
 /// Astronomical unit, m. Exact (IAU 2012 Resolution B2).
 pub const AU: f64 = 149_597_870_700.0;
 /// Parsec, m: `648000 / pi` astronomical units (IAU 2015 Resolution B2).
-pub const PARSEC: f64 = 3.085_677_581_491_367_3e16;
+pub const PARSEC: f64 = 3.085_677_581_491_367e16;
 /// Standard gravity, m/s². Exact (a conventional value, not a local field).
 pub const G0: f64 = 9.806_65;
 /// Planck constant, J s. Exact (2019 SI).

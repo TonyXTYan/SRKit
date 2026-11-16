@@ -28,32 +28,34 @@
 //! decisions belong to [`time`] and [`causal`].
 #![no_std]
 #![forbid(unsafe_code)]
+// Comparisons are written `!(x > 0.0)` on purpose: unlike `x <= 0.0` they also reject a NaN.
+#![allow(clippy::neg_cmp_op_on_partial_ord, clippy::nonminimal_bool)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-// pub mod causal;
-// pub mod frames;
-// pub mod kepler;
-// pub mod kinematics;
-// pub mod optics;
-// pub mod orbit;
-// pub mod plan;
-// pub mod reach;
-// pub mod rindler;
-// pub mod rocket;
-// pub mod roots;
-// pub mod segment;
+pub mod causal;
+pub mod frames;
+pub mod kepler;
+pub mod kinematics;
+pub mod optics;
+pub mod orbit;
+pub mod plan;
+pub mod reach;
+pub mod rindler;
+pub mod rocket;
+pub mod roots;
+pub mod segment;
 pub mod time;
-// pub mod trip;
+pub mod trip;
 pub mod units;
 pub mod vec3;
-// pub mod worldline;
+pub mod worldline;
 
-// pub use kinematics::Event;
-// pub use segment::Segment;
+pub use kinematics::Event;
+pub use segment::Segment;
 pub use vec3::Vec3;
-// pub use worldline::Worldline;
+pub use worldline::Worldline;
 
 /// Why a constructor or an exact operation refused its input.
 ///
