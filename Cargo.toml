@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/srkit-core"]
+members = ["crates/srkit-core", "crates/srkit-navigator-wasm"]
 resolver = "2"
 
 [workspace.package]

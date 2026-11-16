@@ -79,5 +79,11 @@ queries, mass-burning segments, width benchmarks and all P1/P2 modules and
 language bindings remain future work. A wasm library build verifies target
 compatibility; it does not create a JavaScript binding or exercise browser code.
 
+The Navigator now has a separate, deliberately small Wasm bridge in
+`crates/srkit-navigator-wasm` and a geometrized-coordinate compatibility module
+in `srkit-core::navigator`. Its standalone demo and browser/parity checks are
+documented in [the mockups README](../docs/design/mockups/README.md). General
+purpose language bindings remain separate from this prototype integration.
+
 The review and validation record is in
 [SRKit core review](../docs/verification/srkit-core-review.md).

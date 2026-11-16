@@ -263,6 +263,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "srkit-navigator-wasm"
+version = "0.1.0"
+dependencies = [
+ "srkit-core",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.119"
 source = "registry+https://github.com/rust-lang/crates.io-index"

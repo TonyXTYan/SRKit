@@ -1,0 +1,13 @@
+[package]
+name = "srkit-navigator-wasm"
+description = "Synchronous WebAssembly bridge for the Relativistic Navigator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+srkit-core = { path = "../srkit-core" }

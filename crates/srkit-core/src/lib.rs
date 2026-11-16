@@ -7,6 +7,8 @@
 
 pub mod kinematics;
 pub mod lightcone;
+pub mod navigator;
+mod navigator_optics;
 pub mod segment;
 pub mod time;
 pub mod trip;
