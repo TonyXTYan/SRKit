@@ -255,7 +255,7 @@ dependencies = [
 
 [[package]]
 name = "srkit-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bnum",
  "libm",
@@ -263,9 +263,42 @@ dependencies = [
 ]
 
 [[package]]
-name = "srkit-navigator-wasm"
-version = "0.1.0"
+name = "srkit-edu"
+version = "0.2.0"
 dependencies = [
+ "libm",
+ "srkit-core",
+]
+
+[[package]]
+name = "srkit-flrw"
+version = "0.2.0"
+dependencies = [
+ "libm",
+ "srkit-core",
+]
+
+[[package]]
+name = "srkit-gr"
+version = "0.2.0"
+dependencies = [
+ "libm",
+ "srkit-core",
+]
+
+[[package]]
+name = "srkit-log"
+version = "0.2.0"
+dependencies = [
+ "libm",
+ "srkit-core",
+]
+
+[[package]]
+name = "srkit-wasm"
+version = "0.2.0"
+dependencies = [
+ "libm",
  "srkit-core",
 ]
 

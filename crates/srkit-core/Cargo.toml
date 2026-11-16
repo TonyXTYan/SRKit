@@ -1,10 +1,16 @@
 [package]
 name = "srkit-core"
-description = "Experimental piecewise-analytic special relativity primitives"
+description = "Special relativity in 3+1 Minkowski spacetime: piecewise-analytic worldlines, exact proper time, light-cone queries and exact integer clocks"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+repository.workspace = true
+
+[features]
+default = ["alloc"]
+# Owned worldlines (`WorldlineBuf`). Everything else is allocation-free.
+alloc = []
 
 [dependencies]
 bnum.workspace = true

@@ -1,14 +1,37 @@
 [workspace]
-members = ["crates/srkit-core", "crates/srkit-navigator-wasm"]
+members = [
+    "crates/srkit-core",
+    "crates/srkit-flrw",
+    "crates/srkit-gr",
+    "crates/srkit-log",
+    "crates/srkit-edu",
+    "crates/srkit-wasm",
+]
+# srkit-py needs a Python toolchain (PyO3 + maturin); build it from its own directory.
+exclude = ["crates/srkit-py"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.85"
 publish = false
+repository = "https://github.com/TonyXTYan/The-Special-Relativity-Game"
 
 [workspace.dependencies]
 bnum = { version = "=0.12.0", default-features = false }
 libm = "=0.2.15"
 proptest = "=1.6.0"
+srkit-core = { path = "crates/srkit-core" }
+srkit-flrw = { path = "crates/srkit-flrw" }
+srkit-gr = { path = "crates/srkit-gr" }
+srkit-log = { path = "crates/srkit-log" }
+srkit-edu = { path = "crates/srkit-edu" }
+
+# The deterministic path: no fast-math, no FMA contraction (rustc never contracts), one codegen unit so the
+# wasm bytes are reproducible from the pinned toolchain and lockfile.
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
