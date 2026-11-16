@@ -29,7 +29,6 @@ jobs:
           mkdir site
           cp navigator/relativistic-navigator.html site/index.html
           cp LICENSE navigator/STAR-DATA.md site/
-      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
